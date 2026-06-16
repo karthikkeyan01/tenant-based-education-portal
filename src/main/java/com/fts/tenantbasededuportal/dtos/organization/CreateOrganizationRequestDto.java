@@ -2,18 +2,12 @@ package com.fts.tenantbasededuportal.dtos.organization;
 
 import lombok.*;
 
-import java.time.Instant;
-
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrganizationResponseDto {
-
-    private String id;
+public class CreateOrganizationRequestDto {
 
     private String name;
-
-    private Instant createdAt;
 }

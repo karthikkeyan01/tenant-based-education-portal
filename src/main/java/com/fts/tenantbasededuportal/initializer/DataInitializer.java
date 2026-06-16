@@ -75,7 +75,11 @@ public class DataInitializer implements CommandLineRunner {
                 "DELETE_USER",
                 "VIEW_PROFILE",
                 "UPDATE_PROFILE",
-                "CHANGE_PASSWORD"
+                "CHANGE_PASSWORD",
+                "CREATE_ORGANIZATION",
+                "VIEW_ORGANIZATIONS",
+                "UPDATE_ORGANIZATION",
+                "DELETE_ORGANIZATION",
         };
 
         for(final String permissionName : permissions){
@@ -114,7 +118,8 @@ public class DataInitializer implements CommandLineRunner {
                 "DELETE_USER",
                 "VIEW_PROFILE",
                 "UPDATE_PROFILE",
-                "CHANGE_PASSWORD"
+                "CHANGE_PASSWORD",
+                "VIEW_ORGANIZATIONS"
         );
 
         this.assignPermissions(

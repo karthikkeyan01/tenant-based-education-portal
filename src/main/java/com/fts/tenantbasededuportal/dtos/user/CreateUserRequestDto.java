@@ -16,4 +16,8 @@ public class CreateUserRequestDto {
     private String firstName;
 
     private String secondName;
+
+    private String roleName;
+
+    private String organizationId;
 }

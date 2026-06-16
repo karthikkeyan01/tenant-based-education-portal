@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.dtos.user;
 
+import com.fts.tenantbasededuportal.entity.Role;
 import lombok.*;
 
 @Getter
@@ -13,5 +14,9 @@ public class UpdateUserRequestDto {
 
     private String secondName;
 
-    private Boolean disabled;
+    private String organizationId;
+
+    private Boolean mfaEnabled;
+
+    private String roleName;
 }
