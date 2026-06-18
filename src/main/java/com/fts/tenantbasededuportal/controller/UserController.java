@@ -49,13 +49,10 @@ public class UserController {
 
     @PreAuthorize("hasAuthority('DELETE_USER')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(
-            @PathVariable final String id
-    ) {
+    public ResponseEntity<Void> deleteUser(@PathVariable final String id) {
 
         this.userService.deleteUser(id);
 
-        return ResponseEntity.noContent()
-                .build();
+        return ResponseEntity.noContent().build();
     }
 }

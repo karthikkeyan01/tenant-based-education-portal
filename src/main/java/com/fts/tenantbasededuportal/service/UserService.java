@@ -149,6 +149,13 @@ public class UserService {
                 throw new BadRequestException("Invalid role.");
             }
 
+            if (RoleConstants.ORG_ADMIN.equals(requestedRole)
+                    && request.getOrganizationId() == null) {
+
+                throw new BadRequestException(
+                        "Organization admin must belong to an organization.");
+            }
+
             role = this.roleRepository.findByName(requestedRole)
                     .orElseThrow(()->new ResourceNotFoundException(
                             "Role not found"));
