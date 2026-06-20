@@ -248,6 +248,32 @@ public class UserService {
             }
         }
 
+        if (request.getEmail() != null
+                && !RoleConstants.SUPER_ADMIN.equals(currentRole)) {
+
+            throw new UnauthorizedException(
+                    "Only super admins can update email."
+            );
+        }
+
+        if (RoleConstants.SUPER_ADMIN.equals(currentRole)
+                && request.getEmail() != null) {
+
+            if (!targetUser.getEmail()
+                    .equals(request.getEmail())
+                    && this.userRepository.existsByEmail(
+                    request.getEmail())) {
+
+                throw new BadRequestException(
+                        "Email already exists."
+                );
+            }
+
+            targetUser.setEmail(
+                    request.getEmail()
+            );
+        }
+
         if (request.getFirstName() != null) {
             targetUser.setFirstName(request.getFirstName());
         }

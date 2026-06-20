@@ -10,6 +10,8 @@ import lombok.*;
 @Builder
 public class UpdateUserRequestDto {
 
+    private String email;
+
     private String firstName;
 
     private String secondName;
