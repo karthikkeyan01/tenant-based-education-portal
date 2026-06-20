@@ -248,19 +248,9 @@ public class UserService {
             }
         }
 
-        if (request.getEmail() != null
-                && !RoleConstants.SUPER_ADMIN.equals(currentRole)) {
+        if (request.getEmail() != null) {
 
-            throw new UnauthorizedException(
-                    "Only super admins can update email."
-            );
-        }
-
-        if (RoleConstants.SUPER_ADMIN.equals(currentRole)
-                && request.getEmail() != null) {
-
-            if (!targetUser.getEmail()
-                    .equals(request.getEmail())
+            if (!targetUser.getEmail().equals(request.getEmail())
                     && this.userRepository.existsByEmail(
                     request.getEmail())) {
 
@@ -269,9 +259,7 @@ public class UserService {
                 );
             }
 
-            targetUser.setEmail(
-                    request.getEmail()
-            );
+            targetUser.setEmail(request.getEmail());
         }
 
         if (request.getFirstName() != null) {
