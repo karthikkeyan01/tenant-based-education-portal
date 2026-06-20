@@ -35,4 +35,13 @@ public class AuthController {
         return ResponseEntity.ok(this.authService.login(request));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(){
+
+        this.authService.logout();
+
+        return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                .body("Successfully logged out");
+    }
+
 }

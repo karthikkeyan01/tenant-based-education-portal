@@ -1,6 +1,6 @@
 package com.fts.tenantbasededuportal.util;
 
-public class RoleConstants {
+public final class RoleConstants {
 
     private RoleConstants(){
 

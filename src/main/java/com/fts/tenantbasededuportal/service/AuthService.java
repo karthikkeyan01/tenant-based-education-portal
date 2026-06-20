@@ -11,6 +11,7 @@ import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.security.JwtService;
 import com.fts.tenantbasededuportal.security.UserPrincipal;
+import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -32,6 +33,10 @@ public class AuthService {
 
     private final JwtService jwtService;
 
+    private final AuditService auditService;
+
+    private final SecurityUtil  securityUtil;
+
     public void register(final RegisterRequestDto request){
 
         if(this.userRepository.existsByEmail(request.getEmail())){
@@ -51,6 +56,13 @@ public class AuthService {
                 .build();
 
         this.userRepository.save(user);
+
+        this.auditService.log(
+                user,
+                "REGISTER",
+                "USER",
+                user.getId(),
+                "User registered with email " + user.getEmail());
     }
 
     public LoginResponseDto login(final LoginRequestDto request){
@@ -72,11 +84,30 @@ public class AuthService {
 
         final String token = this.jwtService.generateToken(userPrincipal);
 
+        this.auditService.log(
+                userPrincipal.getUser(),
+                "LOGIN",
+                "USER",
+                userPrincipal.getUser().getId(),
+                "User logged in");
+
         return LoginResponseDto.builder()
                 .accessToken(token)
                 .email(userPrincipal.getUsername())
                 .role(userPrincipal.getRoleName())
                 .mfaRequired(userPrincipal.getMfaEnabled())
                 .build();
+    }
+
+    public void logout(){
+
+        final User currentUser = this.securityUtil.getCurrentUser();
+
+        this.auditService.log(
+                currentUser,
+                "LOGOUT",
+                "USER",
+                currentUser.getId(),
+                "User logged out");
     }
 }

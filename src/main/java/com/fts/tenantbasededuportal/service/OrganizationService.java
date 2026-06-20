@@ -24,7 +24,11 @@ public class OrganizationService {
 
     private final UserRepository userRepository;
 
+    private final AuditService auditService;
+
     public Organization createOrganization(final CreateOrganizationRequestDto request) {
+
+        final User currentUser = securityUtil.getCurrentUser();
 
         if (this.organizationRepository.existsByName(request.getName())) {
 
@@ -35,7 +39,16 @@ public class OrganizationService {
                 .name(request.getName())
                 .build();
 
-        return this.organizationRepository.save(organization);
+        this.organizationRepository.save(organization);
+
+        this.auditService.log(
+                currentUser,
+                "CREATE_ORGANIZATION",
+                "ORGANIZATION",
+                organization.getId(),
+                "Created organization " + organization.getName());
+
+        return organization;
 
     }
 
@@ -47,10 +60,26 @@ public class OrganizationService {
 
         if (RoleConstants.SUPER_ADMIN.equals(roleName)) {
 
+            this.auditService.log(
+                    currentUser,
+                    "VIEW_ORGANIZATIONS",
+                    "ORGANIZATION",
+                    null,
+                    "Viewed organizations list");
+
             return this.organizationRepository.findAll();
+
         } else if (RoleConstants.ORG_ADMIN.equals(roleName)) {
 
+            this.auditService.log(
+                    currentUser,
+                    "VIEW_ORGANIZATIONS",
+                    "ORGANIZATION",
+                    null,
+                    "Viewed organizations list");
+
             return List.of(currentUser.getOrganization());
+
         } else {
 
             throw new UnauthorizedException(
@@ -78,11 +107,20 @@ public class OrganizationService {
             }
         }
 
+        this.auditService.log(
+                currentUser,
+                "VIEW_ORGANIZATION",
+                "ORGANIZATION",
+                organization.getId(),
+                "Viewed organization " + organization.getName());
+
         return organization;
     }
 
     public Organization updateOrganizationById(
             final String id, final Organization request) {
+
+        final User currentUser = securityUtil.getCurrentUser();
 
         final Organization organization =
                 this.organizationRepository.findById(id).orElseThrow(
@@ -105,10 +143,22 @@ public class OrganizationService {
 
         organization.setName(request.getName());
 
-        return this.organizationRepository.save(organization);
+        this.organizationRepository.save(organization);
+
+        this.auditService.log(
+                currentUser,
+                "UPDATE_ORGANIZATION",
+                "ORGANIZATION",
+                organization.getId(),
+                "Updated organization " + organization.getName()
+        );
+
+        return organization;
     }
 
     public void deleteOrganization(final String id){
+
+        final User currentUser = securityUtil.getCurrentUser();
 
         final Organization organization = this.organizationRepository
                 .findById(id).orElseThrow(()->
@@ -122,5 +172,12 @@ public class OrganizationService {
         }
 
         this.organizationRepository.delete(organization);
+
+        this.auditService.log(
+                currentUser,
+                "DELETE_ORGANIZATION",
+                "ORGANIZATION",
+                organization.getId(),
+                "Deleted organization " + organization.getName());
     }
 }

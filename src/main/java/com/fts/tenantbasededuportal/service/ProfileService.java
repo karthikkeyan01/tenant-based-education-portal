@@ -21,6 +21,8 @@ public class ProfileService {
 
     private final PasswordEncoder passwordEncoder;
 
+    private final AuditService auditService;
+
     public ProfileResponseDto fetchProfile() {
 
         final User currentUser = this.securityUtil.getCurrentUser();
@@ -30,6 +32,13 @@ public class ProfileService {
         if (currentUser.getOrganization() != null) {
             organizationName = currentUser.getOrganization().getName();
         }
+
+        this.auditService.log(
+                currentUser,
+                "VIEW_PROFILE",
+                "USER",
+                currentUser.getId(),
+                "Viewed own profile");
 
         return ProfileResponseDto.builder()
                 .id(currentUser.getId())
@@ -59,7 +68,32 @@ public class ProfileService {
             currentUser.setMfaEnabled(request.getMfaEnabled());
         }
 
+        String details = "Updated own profile";
+
+        if (request.getMfaEnabled() != null) {
+
+            if(request.getMfaEnabled()){
+                details +=  " and enabled MFA";
+            }
+            else {
+                details +=  " and disabled MFA";
+            }
+        }
+
         this.userRepository.save(currentUser);
+
+        String organizationName = null;
+
+        if (currentUser.getOrganization() != null) {
+            organizationName = currentUser.getOrganization().getName();
+        }
+
+        this.auditService.log(
+                currentUser,
+                "UPDATE_PROFILE",
+                "USER",
+                currentUser.getId(),
+                details);
 
         return ProfileResponseDto.builder()
                 .id(currentUser.getId())
@@ -67,7 +101,7 @@ public class ProfileService {
                 .firstName(currentUser.getFirstName())
                 .secondName(currentUser.getSecondName())
                 .roleName(currentUser.getRole().getName())
-                .organizationName(currentUser.getOrganization().getName())
+                .organizationName(organizationName)
                 .mfaEnabled(currentUser.getMfaEnabled())
                 .build();
     }
@@ -94,5 +128,12 @@ public class ProfileService {
                 passwordEncoder.encode(request.getNewPassword()));
 
         this.userRepository.save(currentUser);
+
+        this.auditService.log(
+                currentUser,
+                "CHANGE_PASSWORD",
+                "USER",
+                currentUser.getId(),
+                "Changed password");
     }
 }

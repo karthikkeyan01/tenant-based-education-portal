@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.dtos.user.BulkUploadResponseDto;
 import com.fts.tenantbasededuportal.dtos.user.CreateUserRequestDto;
 import com.fts.tenantbasededuportal.dtos.user.UpdateUserRequestDto;
 import com.fts.tenantbasededuportal.dtos.user.UserResponseDto;
@@ -14,11 +15,18 @@ import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.fts.tenantbasededuportal.util.RoleConstants;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,6 +43,8 @@ public class UserService {
     private final OrganizationRepository organizationRepository;
 
     private final PasswordEncoder passwordEncoder;
+
+    private final AuditService auditService;
 
     public List<UserResponseDto> fetchUsers(){
 
@@ -82,6 +92,13 @@ public class UserService {
             );
         }
 
+        this.auditService.log(
+                currentUser,
+                "VIEW_USERS",
+                "USER",
+                null,
+                "Viewed users list");
+
         return response;
     }
 
@@ -113,6 +130,14 @@ public class UserService {
 
             organizationName = targetUser.getOrganization().getName();
         }
+
+        this.auditService.log(
+                currentUser,
+                "VIEW_USER",
+                "USER",
+                targetUser.getId(),
+                "Viewed user " + targetUser.getEmail()
+        );
 
         return UserResponseDto.builder()
                 .id(targetUser.getId())
@@ -212,6 +237,13 @@ public class UserService {
             organizationName = organization.getName();
 
         }
+
+        this.auditService.log(
+                currentUser,
+                "CREATE_USER",
+                "USER",
+                user.getId(),
+                "Created user " + user.getEmail());
 
         return UserResponseDto.builder()
                 .id(user.getId())
@@ -318,6 +350,13 @@ public class UserService {
             organizationName = targetUser.getOrganization().getName();
         }
 
+        this.auditService.log(
+                currentUser,
+                "UPDATE_USER",
+                "USER",
+                targetUser.getId(),
+                "Updated user " + targetUser.getEmail());
+
         return UserResponseDto.builder()
                 .id(targetUser.getId())
                 .email(targetUser.getEmail())
@@ -363,5 +402,216 @@ public class UserService {
         targetUser.setDeleted(true);
 
         this.userRepository.save(targetUser);
+
+        this.auditService.log(
+                currentUser,
+                "DELETE_USER",
+                "USER",
+                targetUser.getId(),
+                "Soft deleted user " + targetUser.getEmail());
+    }
+
+    public BulkUploadResponseDto bulkUploadUsers(
+            final MultipartFile file){
+
+        final User currentUser = this.securityUtil.getCurrentUser();
+
+        if (!RoleConstants.ORG_ADMIN.equals(
+                currentUser.getRole().getName())){
+
+            throw new UnauthorizedException(
+                    "Only org_admins can bulk upload users.");
+        }
+
+        final String fileName = file.getOriginalFilename();
+
+        if (fileName == null) {
+
+            throw new BadRequestException(
+                    "File name is missing.");
+        }
+
+        if (fileName.endsWith(".csv")){
+
+            return uploadCsv(file, currentUser);
+        }
+
+        if (fileName.endsWith(".xlsx")){
+
+            return uploadExcel(file, currentUser);
+        }
+
+        throw new BadRequestException(
+                "Only CSV and XLSX files are supported.");
+    }
+
+    private BulkUploadResponseDto uploadCsv
+            (final MultipartFile file, final User currentUser) {
+
+        final List<User> users = new ArrayList<>();
+
+        int total = 0;
+        int created = 0;
+        int skipped = 0;
+
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))){
+
+            String line;
+            br.readLine();
+
+            final Role userRole = this.roleRepository.findByName(
+                            RoleConstants.USER).orElseThrow(() ->
+                            new ResourceNotFoundException("Role not found."));
+
+            while ((line = br.readLine()) != null){
+
+                total++;
+
+                String[] values = line.split(",");
+
+                String email = values[0].trim();
+
+                String firstName = values[1].trim().trim();
+
+                String secondName = values[2].trim().trim();
+
+                String password = values[3].trim();
+
+                if (this.userRepository.existsByEmail(email)){
+
+                    skipped++;
+                    continue;
+                }
+
+                User user = User.builder()
+                        .email(email)
+                        .firstName(firstName)
+                        .secondName(secondName)
+                        .password(this.passwordEncoder.encode(
+                                values[3]))
+                        .role(userRole)
+                        .organization(currentUser.getOrganization())
+                        .deleted(false)
+                        .mfaEnabled(false)
+                        .build();
+
+                users.add(user);
+
+                created++;
+            }
+
+            this.userRepository.saveAll(users);
+
+            this.auditService.log(
+                    currentUser,
+                    "BULK_UPLOAD_USERS",
+                    "USER",
+                    null,
+                    "Bulk uploaded " + created + " users from CSV");
+
+            return BulkUploadResponseDto.builder()
+                    .totalRecords(total)
+                    .createdRecords(created)
+                    .skippedRecords(skipped)
+                    .build();
+
+        }
+        catch (Exception e) {
+
+            throw new BadRequestException("Invalid CSV file.");
+        }
+    }
+
+    private BulkUploadResponseDto uploadExcel
+            (final MultipartFile file, final User currentUser) {
+
+        final List<User> users = new ArrayList<>();
+
+        int total = 0;
+        int created = 0;
+        int skipped = 0;
+
+        try {
+
+            InputStream is = file.getInputStream();
+
+            Workbook workbook = WorkbookFactory.create(is);
+
+            Sheet sheet = workbook.getSheetAt(0);
+
+            final Role userRole = this.roleRepository.findByName(
+                    RoleConstants.USER).orElseThrow(()->
+                    new ResourceNotFoundException("Role not found."));
+
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+
+                Row row = sheet.getRow(i);
+
+                if(row == null){
+
+                    continue;
+                }
+
+                total++;
+
+                String email = row.getCell(0)
+                                .getStringCellValue()
+                                .trim();
+
+                String firstName = row.getCell(1)
+                                .getStringCellValue()
+                                .trim();
+
+                String secondName = row.getCell(2)
+                                .getStringCellValue()
+                                .trim();
+
+                String password = row.getCell(3)
+                                .getStringCellValue()
+                                .trim();
+
+                if (this.userRepository.existsByEmail(email)){
+
+                    skipped++;
+                    continue;
+                }
+
+                User user = User.builder()
+                        .email(email)
+                        .firstName(firstName)
+                        .secondName(secondName)
+                        .password(this.passwordEncoder.encode(password))
+                        .role(userRole)
+                        .organization(currentUser.getOrganization())
+                        .deleted(false)
+                        .mfaEnabled(false)
+                        .build();
+
+                users.add(user);
+
+                created++;
+            }
+
+            workbook.close();
+
+            this.userRepository.saveAll(users);
+
+            this.auditService.log(
+                    currentUser,
+                    "BULK_UPLOAD_USERS",
+                    "USER",
+                    null,
+                    "Bulk uploaded " + created + " users from Excel");
+
+            return BulkUploadResponseDto.builder()
+                    .totalRecords(total)
+                    .createdRecords(created)
+                    .skippedRecords(skipped)
+                    .build();
+        }
+        catch (Exception e) {
+            throw new BadRequestException("Invalid Excel file.");
+        }
+
     }
 }

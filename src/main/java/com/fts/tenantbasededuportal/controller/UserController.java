@@ -1,12 +1,15 @@
 package com.fts.tenantbasededuportal.controller;
 
+import com.fts.tenantbasededuportal.dtos.user.BulkUploadResponseDto;
 import com.fts.tenantbasededuportal.dtos.user.CreateUserRequestDto;
 import com.fts.tenantbasededuportal.dtos.user.UpdateUserRequestDto;
 import com.fts.tenantbasededuportal.dtos.user.UserResponseDto;
 import com.fts.tenantbasededuportal.service.UserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -54,5 +57,13 @@ public class UserController {
         this.userService.deleteUser(id);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAuthority('CREATE_USER')")
+    @PostMapping("/bluk-upload")
+    public BulkUploadResponseDto uploadFile
+            (@RequestParam("file") final MultipartFile file) {
+
+        this.userService.bulkUploadUsers(file);
     }
 }
