@@ -60,10 +60,10 @@ public class UserController {
     }
 
     @PreAuthorize("hasAuthority('CREATE_USER')")
-    @PostMapping("/bluk-upload")
+    @PostMapping("/bulk-upload")
     public BulkUploadResponseDto uploadFile
             (@RequestParam("file") final MultipartFile file) {
 
-        this.userService.bulkUploadUsers(file);
+        return this.userService.bulkUploadUsers(file);
     }
 }

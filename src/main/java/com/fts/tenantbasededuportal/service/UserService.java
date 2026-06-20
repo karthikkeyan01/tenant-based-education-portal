@@ -469,11 +469,17 @@ public class UserService {
 
                 String[] values = line.split(",");
 
+                if (values.length < 4) {
+
+                    skipped++;
+                    continue;
+                }
+
                 String email = values[0].trim();
 
-                String firstName = values[1].trim().trim();
+                String firstName = values[1].trim();
 
-                String secondName = values[2].trim().trim();
+                String secondName = values[2].trim();
 
                 String password = values[3].trim();
 
@@ -487,8 +493,7 @@ public class UserService {
                         .email(email)
                         .firstName(firstName)
                         .secondName(secondName)
-                        .password(this.passwordEncoder.encode(
-                                values[3]))
+                        .password(this.passwordEncoder.encode(password))
                         .role(userRole)
                         .organization(currentUser.getOrganization())
                         .deleted(false)
@@ -531,11 +536,8 @@ public class UserService {
         int created = 0;
         int skipped = 0;
 
-        try {
-
-            InputStream is = file.getInputStream();
-
-            Workbook workbook = WorkbookFactory.create(is);
+        try(InputStream is = file.getInputStream();
+                Workbook workbook = WorkbookFactory.create(is)) {
 
             Sheet sheet = workbook.getSheetAt(0);
 
@@ -553,6 +555,16 @@ public class UserService {
                 }
 
                 total++;
+
+                if (row.getCell(0) == null
+                        || row.getCell(1) == null
+                        || row.getCell(2) == null
+                        || row.getCell(3) == null) {
+
+                    skipped++;
+
+                    continue;
+                }
 
                 String email = row.getCell(0)
                                 .getStringCellValue()
@@ -591,8 +603,6 @@ public class UserService {
 
                 created++;
             }
-
-            workbook.close();
 
             this.userRepository.saveAll(users);
 
