@@ -16,4 +16,6 @@ public class LoginResponseDto {
     private String role;
 
     private Boolean mfaRequired;
+
+    private String message;
 }

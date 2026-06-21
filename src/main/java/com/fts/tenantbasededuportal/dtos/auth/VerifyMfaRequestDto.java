@@ -7,7 +7,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class VerifyOtpRequestDto {
+public class VerifyMfaRequestDto {
 
     private String email;
 
