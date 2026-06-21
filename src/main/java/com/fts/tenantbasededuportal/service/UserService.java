@@ -457,7 +457,20 @@ public class UserService {
         try (BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))){
 
             String line;
-            br.readLine();
+            String header = br.readLine();
+
+            if (header == null) {
+
+                throw new BadRequestException("CSV file is empty.");
+            }
+
+            header = header.trim();
+
+            if (!header.equalsIgnoreCase("email,password")
+            && !header.equalsIgnoreCase("email,password,firstName,secondName")) {
+
+                throw new BadRequestException("Invalid CSV header.");
+            }
 
             final Role userRole = this.roleRepository.findByName(
                             RoleConstants.USER).orElseThrow(() ->
@@ -469,7 +482,7 @@ public class UserService {
 
                 String[] values = line.split(",");
 
-                if (values.length < 4) {
+                if (values.length != 2 && values.length != 4) {
 
                     skipped++;
                     continue;
@@ -477,11 +490,18 @@ public class UserService {
 
                 String email = values[0].trim();
 
-                String firstName = values[1].trim();
+                String password = values[1].trim();
 
-                String secondName = values[2].trim();
+                String firstName = null;
 
-                String password = values[3].trim();
+                String secondName = null;
+
+                if (values.length == 4) {
+
+                    firstName = values[2].trim();
+
+                    secondName = values[3].trim();
+                }
 
                 if (this.userRepository.existsByEmail(email)){
 
@@ -521,6 +541,10 @@ public class UserService {
                     .build();
 
         }
+        catch (BadRequestException e) {
+            throw e;
+        }
+
         catch (Exception e) {
 
             throw new BadRequestException("Invalid CSV file.");
@@ -541,6 +565,52 @@ public class UserService {
 
             Sheet sheet = workbook.getSheetAt(0);
 
+            Row headerRow = sheet.getRow(0);
+
+            if(headerRow == null){
+
+                throw new BadRequestException("Excel file is empty.");
+            }
+
+            if (headerRow.getCell(0) == null || headerRow.getCell(1) == null) {
+
+                throw new BadRequestException("Invalid Excel header.");
+            }
+
+            String column1 = headerRow.getCell(0).getStringCellValue().trim();
+
+            String column2 = headerRow.getCell(1).getStringCellValue().trim();
+
+            String column3 = null;
+
+            String column4 = null;
+
+            boolean twoColumnFormat = column1.equalsIgnoreCase("email")
+                    && column2.equalsIgnoreCase("password");
+
+            if (headerRow.getCell(2) != null) {
+
+                column3 = headerRow.getCell(2).getStringCellValue().trim();
+            }
+
+            if (headerRow.getCell(3) != null) {
+
+                column4 = headerRow.getCell(3).getStringCellValue().trim();
+            }
+
+            boolean fourColumnFormat = headerRow.getCell(2) != null
+                            && headerRow.getCell(3) != null
+                            && column1.equalsIgnoreCase("email")
+                            && column2.equalsIgnoreCase("password")
+                            && "firstName".equalsIgnoreCase(column3)
+                            && "secondName".equalsIgnoreCase(column4);
+
+            if (!twoColumnFormat && !fourColumnFormat) {
+
+                throw new BadRequestException("Invalid Excel header.");
+
+            }
+
             final Role userRole = this.roleRepository.findByName(
                     RoleConstants.USER).orElseThrow(()->
                     new ResourceNotFoundException("Role not found."));
@@ -557,9 +627,7 @@ public class UserService {
                 total++;
 
                 if (row.getCell(0) == null
-                        || row.getCell(1) == null
-                        || row.getCell(2) == null
-                        || row.getCell(3) == null) {
+                        || row.getCell(1) == null) {
 
                     skipped++;
 
@@ -570,17 +638,27 @@ public class UserService {
                                 .getStringCellValue()
                                 .trim();
 
-                String firstName = row.getCell(1)
+                String password = row.getCell(1)
                                 .getStringCellValue()
                                 .trim();
 
-                String secondName = row.getCell(2)
-                                .getStringCellValue()
-                                .trim();
+                String firstName = null;
 
-                String password = row.getCell(3)
-                                .getStringCellValue()
-                                .trim();
+                if (row.getCell(2) != null) {
+
+                    firstName = row.getCell(2)
+                            .getStringCellValue()
+                            .trim();
+                }
+
+                String secondName =  null;
+
+                if (row.getCell(3) != null) {
+
+                    secondName = row.getCell(3)
+                            .getStringCellValue()
+                            .trim();
+                }
 
                 if (this.userRepository.existsByEmail(email)){
 
@@ -619,7 +697,13 @@ public class UserService {
                     .skippedRecords(skipped)
                     .build();
         }
+        catch (BadRequestException e) {
+
+            throw e;
+        }
+
         catch (Exception e) {
+
             throw new BadRequestException("Invalid Excel file.");
         }
 
