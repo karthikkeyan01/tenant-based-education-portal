@@ -5,6 +5,7 @@ import com.fts.tenantbasededuportal.dtos.user.CreateUserRequestDto;
 import com.fts.tenantbasededuportal.dtos.user.UpdateUserRequestDto;
 import com.fts.tenantbasededuportal.dtos.user.UserResponseDto;
 import com.fts.tenantbasededuportal.service.UserService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,9 +16,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/users")
+@RequiredArgsConstructor
 public class UserController {
 
-    private UserService userService;
+    private final UserService userService;
 
     @PreAuthorize("hasAuthority('VIEW_USERS')")
     @GetMapping

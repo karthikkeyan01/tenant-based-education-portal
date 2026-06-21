@@ -40,7 +40,8 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize ->
                         authorize.requestMatchers("/auth/login",
-                                "/auth/register").permitAll()
+                                "/auth/register","/auth/resend-otp",
+                                        "/auth/verify-mfa").permitAll()
                                 .requestMatchers("/actuator/**").hasAuthority("MANAGE_SYSTEM")
                                 .anyRequest().authenticated())
                 .sessionManagement(session ->

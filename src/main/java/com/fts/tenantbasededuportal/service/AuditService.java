@@ -5,6 +5,8 @@ import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.repository.AuditLogRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -40,5 +42,18 @@ public class AuditService {
                 .build();
 
         this.auditLogRepository.save(auditLog);
+    }
+
+    public Page<AuditLog> getAuditLogs(final int page, final int size){
+
+        return this.auditLogRepository.findAll
+                (PageRequest.of(page, size));
+    }
+
+    public Page<AuditLog> getAuditLogsByUser
+            (final String userId, final int page, final int size){
+
+        return this.auditLogRepository.findByUser_Id(userId,
+                PageRequest.of(page, size));
     }
 }

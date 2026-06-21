@@ -35,7 +35,7 @@ public class EmailService {
         }
         catch (Exception e){
 
-            throw new BadRequestException("Failed to send OTP email");
+            throw new BadRequestException(e.getMessage());
         }
     }
 }
