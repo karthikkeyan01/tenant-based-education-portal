@@ -80,6 +80,7 @@ public class DataInitializer implements CommandLineRunner {
                 "VIEW_ORGANIZATIONS",
                 "UPDATE_ORGANIZATION",
                 "DELETE_ORGANIZATION",
+                "MANAGE_SYSTEM"
         };
 
         for(final String permissionName : permissions){

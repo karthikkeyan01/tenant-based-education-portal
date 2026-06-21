@@ -706,6 +706,34 @@ public class UserService {
 
             throw new BadRequestException("Invalid Excel file.");
         }
+    }
 
+    public void deleteUsersByOrganization(final String organizationId) {
+
+        final User currentUser = this.securityUtil.getCurrentUser();
+
+        final Organization organization = this.organizationRepository
+                        .findById(organizationId)
+                        .orElseThrow(() -> new ResourceNotFoundException
+                                ("Organization not found."));
+
+        final List<User> users = this.userRepository
+                        .findByOrganization(organization);
+
+        for (User user : users) {
+
+            user.setDeleted(true);
+        }
+
+        this.userRepository.saveAll(users);
+
+        this.auditService.log(
+                currentUser,
+                "SOFT_DELETE_USERS_BY_ORGANIZATION",
+                "ORGANIZATION",
+                organizationId,
+                "Soft deleted "
+                        + users.size() + " users from organization "
+                        + organization.getName());
     }
 }

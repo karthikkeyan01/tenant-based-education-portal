@@ -66,4 +66,14 @@ public class UserController {
 
         return this.userService.bulkUploadUsers(file);
     }
+
+    @PreAuthorize("hasAuthority('DELETE_USER')")
+    @DeleteMapping("/{organizationId}")
+    public ResponseEntity<Void> deleteUsersByOrganization(
+            @PathVariable final String organizationId) {
+
+        this.userService.deleteUsersByOrganization(organizationId);
+
+        return ResponseEntity.noContent().build();
+    }
 }

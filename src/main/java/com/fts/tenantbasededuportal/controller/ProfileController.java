@@ -26,7 +26,7 @@ public class ProfileController {
         return this.profileService.updateProfile(profile);
     }
 
-    @PutMapping
+    @PutMapping("/password")
     public ResponseEntity<Void> changePassword
             (@RequestBody final ChangePasswordRequestDto request) {
 

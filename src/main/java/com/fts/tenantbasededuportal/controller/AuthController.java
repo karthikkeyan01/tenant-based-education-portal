@@ -1,9 +1,6 @@
 package com.fts.tenantbasededuportal.controller;
 
-import com.fts.tenantbasededuportal.dtos.auth.LoginRequestDto;
-import com.fts.tenantbasededuportal.dtos.auth.LoginResponseDto;
-import com.fts.tenantbasededuportal.dtos.auth.RegisterRequestDto;
-import com.fts.tenantbasededuportal.dtos.auth.VerifyMfaRequestDto;
+import com.fts.tenantbasededuportal.dtos.auth.*;
 import com.fts.tenantbasededuportal.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -41,6 +38,15 @@ public class AuthController {
             @RequestBody final VerifyMfaRequestDto request){
 
         return ResponseEntity.ok(this.authService.verifyMfa(request));
+    }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<Void> resendOtp
+            (@RequestBody final ResendOtpRequestDto request) {
+
+        this.authService.resendOtp(request);
+
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/logout")

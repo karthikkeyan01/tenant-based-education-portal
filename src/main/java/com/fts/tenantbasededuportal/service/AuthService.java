@@ -1,9 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
-import com.fts.tenantbasededuportal.dtos.auth.LoginRequestDto;
-import com.fts.tenantbasededuportal.dtos.auth.LoginResponseDto;
-import com.fts.tenantbasededuportal.dtos.auth.RegisterRequestDto;
-import com.fts.tenantbasededuportal.dtos.auth.VerifyMfaRequestDto;
+import com.fts.tenantbasededuportal.dtos.auth.*;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.RolePermission;
 import com.fts.tenantbasededuportal.entity.User;
@@ -139,18 +136,6 @@ public class AuthService {
                 .build();
     }
 
-    public void logout(){
-
-        final User currentUser = this.securityUtil.getCurrentUser();
-
-        this.auditService.log(
-                currentUser,
-                "LOGOUT",
-                "USER",
-                currentUser.getId(),
-                "User logged out");
-    }
-
     public LoginResponseDto verifyMfa(final VerifyMfaRequestDto request){
 
         final User user = this.userRepository
@@ -213,5 +198,47 @@ public class AuthService {
                 .message("MFA verification successful. " +
                         " User Logged in with MFA.")
                 .build();
+    }
+
+    public void resendOtp(final ResendOtpRequestDto request) {
+
+        final User user = this.userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new BadRequestException
+                        ("Email not found"));
+
+        if (!Boolean.TRUE.equals(user.getMfaEnabled())) {
+
+            throw new BadRequestException("MFA is not enabled.");
+        }
+
+        final String otp = String.valueOf(ThreadLocalRandom.current()
+                                .nextInt(100000, 1000000));
+
+        user.setOtp(this.passwordEncoder.encode(otp));
+
+        user.setOtpExpiresAt(Instant.now().plusSeconds(300));
+
+        this.userRepository.save(user);
+
+        this.emailService.sendOtpMail(user.getEmail(), otp);
+
+        this.auditService.log(
+                user,
+                "RESEND_OTP",
+                "USER",
+                user.getId(),
+                "OTP resent for MFA verification");
+    }
+
+    public void logout(){
+
+        final User currentUser = this.securityUtil.getCurrentUser();
+
+        this.auditService.log(
+                currentUser,
+                "LOGOUT",
+                "USER",
+                currentUser.getId(),
+                "User logged out");
     }
 }
