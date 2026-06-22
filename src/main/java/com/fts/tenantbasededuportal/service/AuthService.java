@@ -11,6 +11,7 @@ import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.security.JwtService;
 import com.fts.tenantbasededuportal.security.UserPrincipal;
+import com.fts.tenantbasededuportal.util.RoleConstants;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -51,7 +52,7 @@ public class AuthService {
             throw new BadRequestException("Email already exists");
         }
 
-        final Role userRole = this.roleRepository.findByName("USER")
+        final Role userRole = this.roleRepository.findByName(RoleConstants.USER)
                 .orElseThrow(() -> new BadRequestException(
                         "Default User role not found"));
 
@@ -93,6 +94,11 @@ public class AuthService {
 
         final User user = userPrincipal.getUser();
 
+        if (Boolean.TRUE.equals(user.getDeleted())) {
+
+            throw new UnauthorizedException("User account is inactive.");
+        }
+
         if (Boolean.TRUE.equals(user.getMfaEnabled())){
 
             String otp = String.valueOf(ThreadLocalRandom.current()
@@ -105,6 +111,13 @@ public class AuthService {
             this.userRepository.save(user);
 
             this.emailService.sendOtpMail(user.getEmail(), otp);
+
+            this.auditService.log(
+                    user,
+                    "LOGIN_MFA_REQUIRED",
+                    "USER",
+                    user.getId(),
+                    "MFA OTP sent during login");
 
             return LoginResponseDto.builder()
                     .email(user.getEmail())
@@ -195,8 +208,7 @@ public class AuthService {
                 .email(user.getEmail())
                 .role(user.getRole().getName())
                 .mfaRequired(false)
-                .message("MFA verification successful. " +
-                        " User Logged in with MFA.")
+                .message("MFA verification successful. User Logged in with MFA.")
                 .build();
     }
 
@@ -209,6 +221,11 @@ public class AuthService {
         if (!Boolean.TRUE.equals(user.getMfaEnabled())) {
 
             throw new BadRequestException("MFA is not enabled.");
+        }
+
+        if (Boolean.TRUE.equals(user.getDeleted())) {
+
+            throw new UnauthorizedException("User account is inactive.");
         }
 
         final String otp = String.valueOf(ThreadLocalRandom.current()

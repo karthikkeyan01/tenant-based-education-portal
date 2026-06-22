@@ -25,7 +25,7 @@ public class AuditController {
     }
 
     @PreAuthorize("hasAuthority('MANAGE_SYSTEM')")
-    @GetMapping("/{userId}")
+    @GetMapping("/user/{userId}")
     public Page<AuditLog> getAuditLogsByUser(
             @PathVariable final String userId,
             @RequestParam(defaultValue = "0") final int page,

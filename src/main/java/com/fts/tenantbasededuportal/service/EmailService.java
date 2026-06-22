@@ -20,7 +20,7 @@ public class EmailService {
 
         try{
 
-            SimpleMailMessage message = new SimpleMailMessage();
+            final SimpleMailMessage message = new SimpleMailMessage();
 
             message.setFrom(fromEmail);
 
@@ -35,7 +35,7 @@ public class EmailService {
         }
         catch (Exception e){
 
-            throw new BadRequestException(e.getMessage());
+            throw new BadRequestException("Failed to send verification email.");
         }
     }
 }

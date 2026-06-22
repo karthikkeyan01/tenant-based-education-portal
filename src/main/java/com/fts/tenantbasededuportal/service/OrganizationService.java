@@ -165,7 +165,7 @@ public class OrganizationService {
                         new ResourceNotFoundException(
                                 "Organization with id " + id + " not found"));
 
-        if (this.userRepository.existsByOrganization(organization)) {
+        if (this.userRepository.existsByOrganizationAndDeletedFalse(organization)) {
 
             throw new BadRequestException
                     ("Organization contains users and cannot be deleted");

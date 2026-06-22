@@ -11,7 +11,7 @@ public class BulkUploadResponseDto {
 
     private Integer totalRecords;
 
-    private Integer createdRecords;
+    private Integer processedRecords;
 
     private Integer skippedRecords;
 }

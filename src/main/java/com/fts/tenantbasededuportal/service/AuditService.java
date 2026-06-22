@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -47,13 +48,13 @@ public class AuditService {
     public Page<AuditLog> getAuditLogs(final int page, final int size){
 
         return this.auditLogRepository.findAll
-                (PageRequest.of(page, size));
+                (PageRequest.of(page, size, Sort.by("createdAt").descending()));
     }
 
     public Page<AuditLog> getAuditLogsByUser
             (final String userId, final int page, final int size){
 
         return this.auditLogRepository.findByUser_Id(userId,
-                PageRequest.of(page, size));
+                PageRequest.of(page, size, Sort.by("createdAt").descending()));
     }
 }

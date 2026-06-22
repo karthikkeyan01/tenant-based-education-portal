@@ -32,6 +32,11 @@ public class MyUserDetailsService
                 this.rolePermissionRepository
                         .findByRole(user.getRole());
 
+        if (Boolean.TRUE.equals(user.getDeleted())) {
+
+            throw new UsernameNotFoundException("User account is inactive");
+        }
+
         return new UserPrincipal(user, rolePermissions);
     }
 }

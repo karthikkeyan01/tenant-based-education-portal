@@ -3,7 +3,6 @@ package com.fts.tenantbasededuportal.controller;
 import com.fts.tenantbasededuportal.dtos.user.*;
 import com.fts.tenantbasededuportal.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +19,7 @@ public class UserController {
 
     @PreAuthorize("hasAuthority('VIEW_USERS')")
     @GetMapping
-    public List<UserResponseDto> users(){
+    public List<UserResponseDto> fetchUsers(){
 
         return userService.fetchUsers();
     }
@@ -74,8 +73,17 @@ public class UserController {
         return this.userService.restoreUser(id, request);
     }
 
+    @PreAuthorize("hasAuthority('MANAGE_USER')")
+    @PostMapping("/bulk-restore")
+    public BulkUploadResponseDto bulkRestoreUsers(
+            @RequestParam("file") final MultipartFile file,
+            @RequestParam("organizationId") final String organizationId) {
+
+        return this.userService.bulkRestoreUsers(file, organizationId);
+    }
+
     @PreAuthorize("hasAuthority('DELETE_USER')")
-    @DeleteMapping("/{organizationId}")
+    @DeleteMapping("/organization/{organizationId}")
     public ResponseEntity<Void> deleteUsersByOrganization(
             @PathVariable final String organizationId) {
 

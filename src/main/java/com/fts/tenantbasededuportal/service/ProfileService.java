@@ -118,6 +118,12 @@ public class ProfileService {
                     "Old password is incorrect");
         }
 
+        if (request.getNewPassword() == null
+                || request.getNewPassword().isBlank()) {
+
+            throw new BadRequestException("New password is required");
+        }
+
         if(request.getOldPassword().equals(request.getNewPassword())) {
 
             throw new BadRequestException(
@@ -125,7 +131,7 @@ public class ProfileService {
         }
 
         currentUser.setPassword(
-                passwordEncoder.encode(request.getNewPassword()));
+                this.passwordEncoder.encode(request.getNewPassword()));
 
         this.userRepository.save(currentUser);
 

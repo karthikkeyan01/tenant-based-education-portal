@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize ->
                         authorize.requestMatchers("/auth/login",
                                 "/auth/register","/auth/resend-otp",
-                                        "/auth/verify-mfa").permitAll()
+                                        "/auth/verify-mfa","/error").permitAll()
                                 .requestMatchers("/actuator/**").hasAuthority("MANAGE_SYSTEM")
                                 .anyRequest().authenticated())
                 .sessionManagement(session ->

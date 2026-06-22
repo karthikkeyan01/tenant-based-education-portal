@@ -53,7 +53,6 @@ public class JwtFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         }
         catch (final Exception exception){
-            exception.printStackTrace();
             response.setStatus(
                     HttpServletResponse.SC_UNAUTHORIZED
             );

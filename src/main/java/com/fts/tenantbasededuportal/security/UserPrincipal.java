@@ -4,7 +4,6 @@ import com.fts.tenantbasededuportal.entity.RolePermission;
 import com.fts.tenantbasededuportal.entity.User;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -63,10 +62,6 @@ public class UserPrincipal implements UserDetails {
     @Override
     public boolean isEnabled() {
         return !this.user.getDeleted();
-    }
-
-    public Boolean getMfaEnabled(){
-        return this.user.getMfaEnabled();
     }
 
     public String getRoleName(){

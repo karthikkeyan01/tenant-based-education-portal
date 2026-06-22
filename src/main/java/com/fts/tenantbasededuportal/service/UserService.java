@@ -116,9 +116,15 @@ public class UserService {
                     .equals(currentUser.getOrganization().getId())) {
 
                 throw new UnauthorizedException(
-                        "You cannot access users from another organization."
-                );
+                        "You cannot access users from another organization.");
             }
+        }
+
+        if (RoleConstants.ORG_ADMIN.equals(roleName)
+                && !RoleConstants.USER.equals(targetUser.getRole().getName())) {
+
+            throw new UnauthorizedException
+                    ("Organization admins can only view users.");
         }
 
         String organizationName = null;
@@ -277,6 +283,13 @@ public class UserService {
             }
         }
 
+        if (RoleConstants.ORG_ADMIN.equals(currentRole)
+                && !RoleConstants.USER.equals(targetUser.getRole().getName())) {
+
+            throw new UnauthorizedException
+                    ("Organization admins can only update users.");
+        }
+
         if (request.getEmail() != null) {
 
             if (!targetUser.getEmail().equals(request.getEmail())
@@ -384,9 +397,15 @@ public class UserService {
                             currentUser.getOrganization().getId())) {
 
                 throw new UnauthorizedException(
-                        "You cannot delete users from another organization."
-                );
+                        "You cannot delete users from another organization.");
             }
+        }
+
+        if (RoleConstants.ORG_ADMIN.equals(currentRole)
+                && !RoleConstants.USER.equals(targetUser.getRole().getName())) {
+
+            throw new UnauthorizedException(
+                    "Organization admins can only delete users.");
         }
 
         if (Boolean.TRUE.equals(targetUser.getDeleted())) {
@@ -430,12 +449,12 @@ public class UserService {
 
         if (fileName.endsWith(".csv")){
 
-            return uploadCsv(file, currentUser);
+            return uploadCsv(file, currentUser, false, null);
         }
 
         if (fileName.endsWith(".xlsx")){
 
-            return uploadExcel(file, currentUser);
+            return uploadExcel(file, currentUser, false, null);
         }
 
         throw new BadRequestException(
@@ -443,12 +462,13 @@ public class UserService {
     }
 
     private BulkUploadResponseDto uploadCsv
-            (final MultipartFile file, final User currentUser) {
+            (final MultipartFile file, final User currentUser,
+             final boolean restore, final Organization restoreOrganization ) {
 
         final List<User> users = new ArrayList<>();
 
         int total = 0;
-        int created = 0;
+        int processed = 0;
         int skipped = 0;
 
         try (BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))){
@@ -469,9 +489,14 @@ public class UserService {
                 throw new BadRequestException("Invalid CSV header.");
             }
 
-            final Role userRole = this.roleRepository.findByName(
-                            RoleConstants.USER).orElseThrow(() ->
-                            new ResourceNotFoundException("Role not found."));
+            Role userRole = null;
+
+            if(!restore){
+
+                userRole = this.roleRepository.findByName(
+                        RoleConstants.USER).orElseThrow(() ->
+                        new ResourceNotFoundException("Role not found."));
+            }
 
             while ((line = br.readLine()) != null){
 
@@ -500,7 +525,34 @@ public class UserService {
                     secondName = values[3].trim();
                 }
 
-                if (this.userRepository.existsByEmail(email)){
+                final User existingUser = this.userRepository.findByEmail(email)
+                        .orElse(null);
+
+                if(restore){
+
+                    if (existingUser == null){
+
+                        skipped++;
+                        continue;
+                    }
+
+                    if (!existingUser.getDeleted()){
+
+                        skipped++;
+                        continue;
+                    }
+
+                    existingUser.setDeleted(false);
+
+                    existingUser.setOrganization(restoreOrganization);
+
+                    this.userRepository.save(existingUser);
+
+                    processed++;
+                    continue;
+                }
+
+                if (existingUser != null){
 
                     skipped++;
                     continue;
@@ -519,21 +571,36 @@ public class UserService {
 
                 users.add(user);
 
-                created++;
+                processed++;
             }
 
-            this.userRepository.saveAll(users);
+            if (!restore){
 
-            this.auditService.log(
-                    currentUser,
-                    "BULK_UPLOAD_USERS",
-                    "USER",
-                    null,
-                    "Bulk uploaded " + created + " users from CSV");
+                this.userRepository.saveAll(users);
+            }
+
+            if (restore){
+
+                this.auditService.log(
+                        currentUser,
+                        "BULK_RESTORE_USERS",
+                        "USER",
+                        restoreOrganization.getId(),
+                        "Bulk restored " + processed + " users from CSV.");
+            }
+            else{
+
+                this.auditService.log(
+                        currentUser,
+                        "BULK_UPLOAD_USERS",
+                        "USER",
+                        null,
+                        "Bulk uploaded " + processed + " users from CSV");
+            }
 
             return BulkUploadResponseDto.builder()
                     .totalRecords(total)
-                    .createdRecords(created)
+                    .processedRecords(processed)
                     .skippedRecords(skipped)
                     .build();
 
@@ -549,12 +616,13 @@ public class UserService {
     }
 
     private BulkUploadResponseDto uploadExcel
-            (final MultipartFile file, final User currentUser) {
+            (final MultipartFile file, final User currentUser,
+             final boolean restore, final Organization restoreOrganization) {
 
         final List<User> users = new ArrayList<>();
 
         int total = 0;
-        int created = 0;
+        int processed = 0;
         int skipped = 0;
 
         try(InputStream is = file.getInputStream();
@@ -608,9 +676,14 @@ public class UserService {
 
             }
 
-            final Role userRole = this.roleRepository.findByName(
-                    RoleConstants.USER).orElseThrow(()->
-                    new ResourceNotFoundException("Role not found."));
+            Role userRole = null;
+
+            if(!restore){
+
+                userRole = this.roleRepository.findByName(
+                        RoleConstants.USER).orElseThrow(()->
+                        new ResourceNotFoundException("Role not found."));
+            }
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
 
@@ -657,7 +730,34 @@ public class UserService {
                             .trim();
                 }
 
-                if (this.userRepository.existsByEmail(email)){
+                final User existingUser = this.userRepository.findByEmail(email)
+                        .orElse(null);
+
+                if(restore){
+
+                    if (existingUser == null){
+
+                        skipped++;
+                        continue;
+                    }
+
+                    if (!existingUser.getDeleted()){
+
+                        skipped++;
+                        continue;
+                    }
+
+                    existingUser.setDeleted(false);
+
+                    existingUser.setOrganization(restoreOrganization);
+
+                    this.userRepository.save(existingUser);
+
+                    processed++;
+                    continue;
+                }
+
+                if (existingUser != null){
 
                     skipped++;
                     continue;
@@ -676,21 +776,36 @@ public class UserService {
 
                 users.add(user);
 
-                created++;
+                processed++;
             }
 
-            this.userRepository.saveAll(users);
+            if (!restore){
 
-            this.auditService.log(
-                    currentUser,
-                    "BULK_UPLOAD_USERS",
-                    "USER",
-                    null,
-                    "Bulk uploaded " + created + " users from Excel");
+                this.userRepository.saveAll(users);
+            }
+
+            if (restore){
+
+                this.auditService.log(
+                        currentUser,
+                        "BULK_RESTORE_USERS",
+                        "USER",
+                        restoreOrganization.getId(),
+                        "Bulk restored " + processed + " users from Excel.");
+            }
+            else{
+
+                this.auditService.log(
+                        currentUser,
+                        "BULK_UPLOAD_USERS",
+                        "USER",
+                        null,
+                        "Bulk uploaded " + processed + " users from Excel");
+            }
 
             return BulkUploadResponseDto.builder()
                     .totalRecords(total)
-                    .createdRecords(created)
+                    .processedRecords(processed)
                     .skippedRecords(skipped)
                     .build();
         }
@@ -720,6 +835,8 @@ public class UserService {
         for (User user : users) {
 
             user.setDeleted(true);
+
+            user.setOrganization(null);
         }
 
         this.userRepository.saveAll(users);
@@ -810,5 +927,49 @@ public class UserService {
                 .deleted(targetUser.getDeleted())
                 .mfaEnabled(targetUser.getMfaEnabled())
                 .build();
+    }
+
+    public BulkUploadResponseDto bulkRestoreUsers(final MultipartFile file,
+                                                  final String organizationId){
+
+        final User currentUser = this.securityUtil.getCurrentUser();
+
+        final Organization organization = this.organizationRepository
+                .findById(organizationId).orElseThrow(()->
+                        new ResourceNotFoundException("Organization not found"));
+
+        final String roleName = currentUser.getRole().getName();
+
+        if (!RoleConstants.SUPER_ADMIN.equals(roleName)
+                && !RoleConstants.ORG_ADMIN.equals(roleName)) {
+
+            throw new UnauthorizedException("You are not authorized to bulk restore users.");
+        }
+
+        if (RoleConstants.ORG_ADMIN.equals(currentUser.getRole().getName())
+                && !organization.getId().equals(currentUser.getOrganization().getId())) {
+
+            throw new UnauthorizedException(
+                    "You can only restore users to your own organization.");
+        }
+
+        final String fileName = file.getOriginalFilename();
+
+        if (fileName == null){
+
+            throw new BadRequestException("File is missing");
+        }
+
+        if (fileName.endsWith(".csv")){
+
+            return uploadCsv(file, currentUser, true, organization);
+        }
+
+        if (fileName.endsWith(".xlsx")){
+
+            return uploadExcel(file, currentUser, true, organization);
+        }
+
+        throw new BadRequestException("Only CSV and XLSX files are supported");
     }
 }
