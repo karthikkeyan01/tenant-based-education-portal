@@ -824,6 +824,11 @@ public class UserService {
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
+        if (!RoleConstants.SUPER_ADMIN.equals(currentUser.getRole().getName())){
+
+            throw new UnauthorizedException("Only super admin can delete users by organization");
+        }
+
         final Organization organization = this.organizationRepository
                         .findById(organizationId)
                         .orElseThrow(() -> new ResourceNotFoundException
