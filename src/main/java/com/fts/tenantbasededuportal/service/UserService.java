@@ -1,9 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
-import com.fts.tenantbasededuportal.dtos.user.BulkUploadResponseDto;
-import com.fts.tenantbasededuportal.dtos.user.CreateUserRequestDto;
-import com.fts.tenantbasededuportal.dtos.user.UpdateUserRequestDto;
-import com.fts.tenantbasededuportal.dtos.user.UserResponseDto;
+import com.fts.tenantbasededuportal.dtos.user.*;
 import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
@@ -735,5 +732,83 @@ public class UserService {
                 "Soft deleted "
                         + users.size() + " users from organization "
                         + organization.getName());
+    }
+
+    public UserResponseDto restoreUser(final String id,
+                                       final RestoreUserRequestDto request) {
+
+        final  User currentUser = this.securityUtil.getCurrentUser();
+
+        final String currentRole = currentUser.getRole().getName();
+
+        final User targetUser = this.userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if(!targetUser.getDeleted()){
+
+            throw new BadRequestException("User already active.");
+        }
+
+        if (RoleConstants.ORG_ADMIN.equals(currentRole)){
+
+            if (!RoleConstants.USER.equals(targetUser.getRole().getName())){
+
+                throw new UnauthorizedException("Organization Admins can only restore users.");
+            }
+
+            if(targetUser.getOrganization() == null || !targetUser.getOrganization()
+                    .getId().equals(currentUser.getOrganization().getId())){
+
+                throw new UnauthorizedException
+                        ("you can only restore users in your own organization");
+            }
+        }
+
+        if (request.getOrganizationId() != null){
+
+            if (RoleConstants.ORG_ADMIN.equals(currentRole)
+                    && !request.getOrganizationId()
+                    .equals(currentUser.getOrganization().getId())) {
+
+                throw new UnauthorizedException
+                        ("Organization admins can only assign users to their own organization.");
+            }
+
+            final Organization organization = this.organizationRepository
+                    .findById(request.getOrganizationId())
+                    .orElseThrow(()-> new ResourceNotFoundException
+                            ("Organization not found"));
+
+            targetUser.setOrganization(organization);
+        }
+
+        targetUser.setDeleted(false);
+
+        this.userRepository.save(targetUser);
+
+        this.auditService.log(
+                currentUser,
+                "RESTORE_USER",
+                "USER",
+                targetUser.getId(),
+                "Restored user: " + targetUser.getEmail());
+
+        String organizationName = null;
+
+        if (targetUser.getOrganization() != null){
+
+            organizationName = targetUser.getOrganization().getName();
+        }
+
+        return UserResponseDto.builder()
+                .id(targetUser.getId())
+                .email(targetUser.getEmail())
+                .firstName(targetUser.getFirstName())
+                .secondName(targetUser.getSecondName())
+                .roleName(targetUser.getRole().getName())
+                .organizationName(organizationName)
+                .deleted(targetUser.getDeleted())
+                .mfaEnabled(targetUser.getMfaEnabled())
+                .build();
     }
 }

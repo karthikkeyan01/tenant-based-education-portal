@@ -1,9 +1,6 @@
 package com.fts.tenantbasededuportal.controller;
 
-import com.fts.tenantbasededuportal.dtos.user.BulkUploadResponseDto;
-import com.fts.tenantbasededuportal.dtos.user.CreateUserRequestDto;
-import com.fts.tenantbasededuportal.dtos.user.UpdateUserRequestDto;
-import com.fts.tenantbasededuportal.dtos.user.UserResponseDto;
+import com.fts.tenantbasededuportal.dtos.user.*;
 import com.fts.tenantbasededuportal.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -67,6 +64,14 @@ public class UserController {
             (@RequestParam("file") final MultipartFile file) {
 
         return this.userService.bulkUploadUsers(file);
+    }
+
+    @PreAuthorize("hasAuthority('MANAGE_USER')")
+    @PutMapping("/{id}/restore")
+    public UserResponseDto restoreUser(@PathVariable final String id,
+                                       @RequestBody final RestoreUserRequestDto request){
+
+        return this.userService.restoreUser(id, request);
     }
 
     @PreAuthorize("hasAuthority('DELETE_USER')")
