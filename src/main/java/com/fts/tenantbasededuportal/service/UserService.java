@@ -43,6 +43,7 @@ public class UserService {
 
     private final AuditService auditService;
 
+    //Performs a GET operation and fetches all users from the DB.
     public List<UserResponseDto> fetchUsers(){
 
         final User currentUser = this.securityUtil.getCurrentUser();
@@ -51,15 +52,18 @@ public class UserService {
 
         final List<User> users;
 
+        //checks if the logged-in user is super admin if so allows the operation.
         if(RoleConstants.SUPER_ADMIN.equals(roleName)){
 
             users = this.userRepository.findAll();
         }
+        //checks if the logged-in user is org admin if so allows the operation.
         else if (RoleConstants.ORG_ADMIN.equals(roleName)) {
 
             users = this.userRepository.findByOrganization(
                     currentUser.getOrganization());
         }
+        //deny the operation for users.
         else {
             throw new UnauthorizedException(
                     "you don't have permission to view users");
@@ -99,6 +103,7 @@ public class UserService {
         return response;
     }
 
+    //Performs a GET operation and fetches the user based on the given id.
     public UserResponseDto fetchUserById(final String id){
 
         final User currentUser = this.securityUtil.getCurrentUser();
@@ -109,8 +114,13 @@ public class UserService {
 
         final String roleName = currentUser.getRole().getName();
 
+        //checks if the current user is org admin.
         if (RoleConstants.ORG_ADMIN.equals(roleName)) {
 
+            /*checks the role of target user is null and compares it with
+            the role of current user (both roles should match) (false and true,
+             true and false or true and true gives exception).
+             */
             if (targetUser.getOrganization() == null
                     || !targetUser.getOrganization().getId()
                     .equals(currentUser.getOrganization().getId())) {
@@ -120,6 +130,7 @@ public class UserService {
             }
         }
 
+        //if role is org admin then they can only view users.
         if (RoleConstants.ORG_ADMIN.equals(roleName)
                 && !RoleConstants.USER.equals(targetUser.getRole().getName())) {
 
@@ -153,10 +164,12 @@ public class UserService {
                 .build();
     }
 
+    //Performs a POST operation and creates a user in DB.
     public UserResponseDto createUser(final CreateUserRequestDto request){
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
+        //checks if the user already exists with email.
         if(this.userRepository.existsByEmail(request.getEmail())){
             throw new BadRequestException("Email already exists");
         }
@@ -169,14 +182,17 @@ public class UserService {
 
         final Organization organization;
 
+        //checks if current user is super admin.
         if(RoleConstants.SUPER_ADMIN.equals(currentRole)){
 
+            //can only create user and org admin.
             if(!RoleConstants.USER.equals(requestedRole)
             && !RoleConstants.ORG_ADMIN.equals(requestedRole)){
 
                 throw new BadRequestException("Invalid role.");
             }
 
+            //only can create an org admin with an organization id.
             if (RoleConstants.ORG_ADMIN.equals(requestedRole)
                     && request.getOrganizationId() == null) {
 
@@ -188,6 +204,7 @@ public class UserService {
                     .orElseThrow(()->new ResourceNotFoundException(
                             "Role not found"));
 
+            //if request has org id sets it to a variable.
             if (request.getOrganizationId() != null){
 
                 organization = this.organizationRepository
@@ -199,8 +216,10 @@ public class UserService {
                 organization = null;
             }
         }
+        //checks if current user is org admin
         else if (RoleConstants.ORG_ADMIN.equals(currentRole)) {
 
+            //if current user is org admin then can only create users in own org.
             if(!RoleConstants.USER.equals(requestedRole)){
 
                 throw new UnauthorizedException(
@@ -259,6 +278,8 @@ public class UserService {
                 .build();
     }
 
+    //performs a PUT operation and updates user with the help of id.
+    //both super admin and org admin can access.
     public UserResponseDto updateUser(final String id,
             final UpdateUserRequestDto request) {
 
@@ -270,8 +291,12 @@ public class UserService {
 
         final String currentRole = currentUser.getRole().getName();
 
+        //check is current role is org admin.
         if (RoleConstants.ORG_ADMIN.equals(currentRole)) {
 
+            /*checks both organization of current and target user are same
+            if target organization is not null.
+             */
             if (targetUser.getOrganization() == null
                     || !targetUser.getOrganization()
                     .getId()
@@ -283,6 +308,7 @@ public class UserService {
             }
         }
 
+        //prevents org admins from updating other org admins.
         if (RoleConstants.ORG_ADMIN.equals(currentRole)
                 && !RoleConstants.USER.equals(targetUser.getRole().getName())) {
 
@@ -292,6 +318,7 @@ public class UserService {
 
         if (request.getEmail() != null) {
 
+            //checks if the email we are updating already exists if so throws error.
             if (!targetUser.getEmail().equals(request.getEmail())
                     && this.userRepository.existsByEmail(
                     request.getEmail())) {
@@ -312,15 +339,18 @@ public class UserService {
             targetUser.setSecondName(request.getSecondName());
         }
 
+        //checks current user is super admin
         if (RoleConstants.SUPER_ADMIN.equals(currentRole)
                 && request.getRoleName() != null) {
 
+            //can only update users and org_admin.
             if (!RoleConstants.USER.equals(request.getRoleName())
                     && !RoleConstants.ORG_ADMIN.equals(request.getRoleName())) {
 
                 throw new BadRequestException("Invalid role.");
             }
 
+            //makes sure if updating org admin organization is present
             if (RoleConstants.ORG_ADMIN.equals(request.getRoleName())
                     && request.getOrganizationId() == null
                     && targetUser.getOrganization() == null) {
@@ -339,6 +369,7 @@ public class UserService {
             targetUser.setRole(role);
         }
 
+        //checks if super admin and organization in request is not null.
         if (RoleConstants.SUPER_ADMIN.equals(currentRole)
                 && request.getOrganizationId() != null) {
 
@@ -380,6 +411,8 @@ public class UserService {
                 .build();
     }
 
+
+    //performs a DELETE operation and soft deletes (sets deleted to true in user table).
     public void deleteUser(final String id) {
 
         final User currentUser = this.securityUtil.getCurrentUser();
@@ -390,8 +423,12 @@ public class UserService {
 
         final String currentRole = currentUser.getRole().getName();
 
+        //checks if logged-in user is org admin.
         if (RoleConstants.ORG_ADMIN.equals(currentRole)) {
 
+            /*if org admin then checks that org of target is not null
+            and belongs to the same org as org admin(current user)
+             */
             if (targetUser.getOrganization() == null
                     || !targetUser.getOrganization().getId().equals(
                             currentUser.getOrganization().getId())) {
@@ -401,6 +438,7 @@ public class UserService {
             }
         }
 
+        //prevents org admin from deleting any other roles other than users.
         if (RoleConstants.ORG_ADMIN.equals(currentRole)
                 && !RoleConstants.USER.equals(targetUser.getRole().getName())) {
 
@@ -415,6 +453,7 @@ public class UserService {
             );
         }
 
+        //if not already deleted sets the target deleted to true (soft delete).
         targetUser.setDeleted(true);
 
         this.userRepository.save(targetUser);
@@ -427,11 +466,14 @@ public class UserService {
                 "Soft deleted user " + targetUser.getEmail());
     }
 
+    //performs a PUT operation and bulk uploads users to DB.
+    //only org admins can bulk upload.
     public BulkUploadResponseDto bulkUploadUsers(
             final MultipartFile file){
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
+        //checks if current user is org admin.
         if (!RoleConstants.ORG_ADMIN.equals(
                 currentUser.getRole().getName())){
 
@@ -461,12 +503,15 @@ public class UserService {
                 "Only CSV and XLSX files are supported.");
     }
 
+    //method for uploading/restoring csv called by bulk upload and restore.
+    //takes file, current user, a boolean restore and organization id as parameters based on the operation.
     private BulkUploadResponseDto uploadCsv
             (final MultipartFile file, final User currentUser,
              final boolean restore, final Organization restoreOrganization ) {
 
         final List<User> users = new ArrayList<>();
 
+        //sets variables needed for response dto.
         int total = 0;
         int processed = 0;
         int skipped = 0;
@@ -476,6 +521,7 @@ public class UserService {
             String line;
             String header = br.readLine();
 
+            //makes sure header file is present.
             if (header == null) {
 
                 throw new BadRequestException("CSV file is empty.");
@@ -483,6 +529,7 @@ public class UserService {
 
             header = header.trim();
 
+            //checks the header order and throws error if the order is not one of the given orders.
             if (!header.equalsIgnoreCase("email,password")
             && !header.equalsIgnoreCase("email,password,firstName,secondName")) {
 
@@ -491,6 +538,9 @@ public class UserService {
 
             Role userRole = null;
 
+            /*checks if we are restoring and if we are then sets role to user.
+            can only bulk restore users in an org.
+             */
             if(!restore){
 
                 userRole = this.roleRepository.findByName(
@@ -498,12 +548,14 @@ public class UserService {
                         new ResourceNotFoundException("Role not found."));
             }
 
+            //main loop runs till the next line in file is null.
             while ((line = br.readLine()) != null){
 
                 total++;
 
                 String[] values = line.split(",");
 
+                //can only have values of length of format mentioned above.
                 if (values.length != 2 && values.length != 4) {
 
                     skipped++;
@@ -528,6 +580,7 @@ public class UserService {
                 final User existingUser = this.userRepository.findByEmail(email)
                         .orElse(null);
 
+                //runs if we are bulk restoring
                 if(restore){
 
                     if (existingUser == null){
@@ -542,6 +595,7 @@ public class UserService {
                         continue;
                     }
 
+                    //restores (sets existing user false)
                     existingUser.setDeleted(false);
 
                     existingUser.setOrganization(restoreOrganization);
@@ -615,6 +669,7 @@ public class UserService {
         }
     }
 
+    //method for bulk upload and restore users.
     private BulkUploadResponseDto uploadExcel
             (final MultipartFile file, final User currentUser,
              final boolean restore, final Organization restoreOrganization) {
@@ -670,6 +725,7 @@ public class UserService {
                             && "firstName".equalsIgnoreCase(column3)
                             && "secondName".equalsIgnoreCase(column4);
 
+            //checks both headers.
             if (!twoColumnFormat && !fourColumnFormat) {
 
                 throw new BadRequestException("Invalid Excel header.");
@@ -678,6 +734,9 @@ public class UserService {
 
             Role userRole = null;
 
+            /*checks if we are restoring and if we are then sets role to user.
+            can only bulk restore users in an org.
+             */
             if(!restore){
 
                 userRole = this.roleRepository.findByName(
@@ -685,6 +744,7 @@ public class UserService {
                         new ResourceNotFoundException("Role not found."));
             }
 
+            //main loop.
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
 
                 Row row = sheet.getRow(i);
@@ -730,9 +790,11 @@ public class UserService {
                             .trim();
                 }
 
+                //checks if user is already existing.
                 final User existingUser = this.userRepository.findByEmail(email)
                         .orElse(null);
 
+                //runs if restoring.
                 if(restore){
 
                     if (existingUser == null){
@@ -741,6 +803,7 @@ public class UserService {
                         continue;
                     }
 
+                    //skips if not deleted
                     if (!existingUser.getDeleted()){
 
                         skipped++;
@@ -820,10 +883,13 @@ public class UserService {
         }
     }
 
+    //performs a DELETE operation that deletes all users in an org.
+    //can only be done by super admin.
     public void deleteUsersByOrganization(final String organizationId) {
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
+        //checks if user is super admin
         if (!RoleConstants.SUPER_ADMIN.equals(currentUser.getRole().getName())){
 
             throw new UnauthorizedException("Only super admin can delete users by organization");
@@ -837,6 +903,7 @@ public class UserService {
         final List<User> users = this.userRepository
                         .findByOrganization(organization);
 
+        //loops through org users of given org id and sets deleted and org as true and null.
         for (User user : users) {
 
             user.setDeleted(true);
@@ -856,6 +923,10 @@ public class UserService {
                         + organization.getName());
     }
 
+
+    //performs a PUT operation and restores all soft deleted users.
+    //org id is needed for restoring a deleted user to a new org.
+    //can br done by super and org admin.
     public UserResponseDto restoreUser(final String id,
                                        final RestoreUserRequestDto request) {
 
@@ -871,8 +942,10 @@ public class UserService {
             throw new BadRequestException("User already active.");
         }
 
+        //check for org admin.
         if (RoleConstants.ORG_ADMIN.equals(currentRole)){
 
+            //checks if org admin only restores users of their org.
             if (!RoleConstants.USER.equals(targetUser.getRole().getName())){
 
                 throw new UnauthorizedException("Organization Admins can only restore users.");
@@ -888,6 +961,7 @@ public class UserService {
 
         if (request.getOrganizationId() != null){
 
+            //checks if org id is given and role is org admin then org admin can only restore users to their org.
             if (RoleConstants.ORG_ADMIN.equals(currentRole)
                     && !request.getOrganizationId()
                     .equals(currentUser.getOrganization().getId())) {
@@ -934,6 +1008,9 @@ public class UserService {
                 .build();
     }
 
+
+    //performs a POST operation and bulk restores users with a file.
+    //can be done by org admin and super admin.
     public BulkUploadResponseDto bulkRestoreUsers(final MultipartFile file,
                                                   final String organizationId){
 
@@ -945,12 +1022,14 @@ public class UserService {
 
         final String roleName = currentUser.getRole().getName();
 
+        //checks if current user is user and if so block them.
         if (!RoleConstants.SUPER_ADMIN.equals(roleName)
                 && !RoleConstants.ORG_ADMIN.equals(roleName)) {
 
             throw new UnauthorizedException("You are not authorized to bulk restore users.");
         }
 
+        //checks if org admin then can only restore their own org users.
         if (RoleConstants.ORG_ADMIN.equals(currentUser.getRole().getName())
                 && !organization.getId().equals(currentUser.getOrganization().getId())) {
 

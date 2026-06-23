@@ -16,6 +16,7 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
+    //method to send the generated otp to the given toEmail.
     public void sendOtpMail(final String toEmail, final String otp) {
 
         try{

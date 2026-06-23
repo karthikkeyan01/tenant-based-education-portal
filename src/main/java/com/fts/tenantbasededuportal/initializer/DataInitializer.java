@@ -8,6 +8,7 @@ import com.fts.tenantbasededuportal.repository.PermissionRepository;
 import com.fts.tenantbasededuportal.repository.RolePermissionRepository;
 import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
+import com.fts.tenantbasededuportal.util.RoleConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -189,7 +190,7 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         final  Role superAdminRole = this.roleRepository
-                .findByName("SUPER_ADMIN").orElseThrow();
+                .findByName(RoleConstants.SUPER_ADMIN).orElseThrow();
 
         final String password = this.passwordEncoder
                 .encode(SUPER_ADMIN_PASSWORD);

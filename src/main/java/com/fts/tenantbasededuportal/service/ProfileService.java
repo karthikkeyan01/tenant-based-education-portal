@@ -23,6 +23,7 @@ public class ProfileService {
 
     private final AuditService auditService;
 
+    //performs a GET request and fetches the profile of logged-in user.
     public ProfileResponseDto fetchProfile() {
 
         final User currentUser = this.securityUtil.getCurrentUser();
@@ -51,6 +52,7 @@ public class ProfileService {
                 .build();
     }
 
+    //performs a PUT request and updates profile of logged-in user.
     public ProfileResponseDto updateProfile
             (final UpdateProfileRequestDto request) {
 
@@ -106,6 +108,8 @@ public class ProfileService {
                 .build();
     }
 
+    //performs a PUT request and changes the password of logged-in user.
+    //note needs old password and new password (must match)
     public void changeProfilePassword
             (final ChangePasswordRequestDto request) {
 

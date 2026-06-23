@@ -26,6 +26,8 @@ public class OrganizationService {
 
     private final AuditService auditService;
 
+    //performs a POST operation and creates an organization.
+    //only super admin can create organizations
     public Organization createOrganization(final CreateOrganizationRequestDto request) {
 
         final User currentUser = securityUtil.getCurrentUser();
@@ -52,12 +54,15 @@ public class OrganizationService {
 
     }
 
+    //performs a GET operation and fetches all organizations.
+    //can be performed only by super admin.
     public List<Organization> fetchAllOrganizations() {
 
         final User currentUser = securityUtil.getCurrentUser();
 
         final String roleName = currentUser.getRole().getName();
 
+        //checks if logged-in user is super admin.
         if (RoleConstants.SUPER_ADMIN.equals(roleName)) {
 
             this.auditService.log(
@@ -69,7 +74,9 @@ public class OrganizationService {
 
             return this.organizationRepository.findAll();
 
-        } else if (RoleConstants.ORG_ADMIN.equals(roleName)) {
+        }
+        //checks if logged-in user is org admin.
+        else if (RoleConstants.ORG_ADMIN.equals(roleName)) {
 
             this.auditService.log(
                     currentUser,
@@ -87,6 +94,8 @@ public class OrganizationService {
         }
     }
 
+    //performs a GET operation and fetches organization based on org id.
+    //can be accessed by both org and super admin.
     public Organization fetchOrganizationById(final String id) {
 
         final User currentUser = securityUtil.getCurrentUser();
@@ -97,6 +106,7 @@ public class OrganizationService {
                 () -> new ResourceNotFoundException
                         ("Organization with id " + id + " not found"));
 
+        //org admin cannot access other orgs
         if (RoleConstants.ORG_ADMIN.equals(roleName)) {
 
             if(currentUser.getOrganization() == null
@@ -117,6 +127,8 @@ public class OrganizationService {
         return organization;
     }
 
+    //performs a PUT operation and updates organization.
+    //can be only performed by super admin.
     public Organization updateOrganizationById(
             final String id, final Organization request) {
 
@@ -156,6 +168,8 @@ public class OrganizationService {
         return organization;
     }
 
+    //performs a DELETE operation and deletes the organization.
+    //can only be performed by super admin.
     public void deleteOrganization(final String id){
 
         final User currentUser = securityUtil.getCurrentUser();
