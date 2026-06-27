@@ -1,8 +1,8 @@
 package com.fts.tenantbasededuportal.controller;
 
-import com.fts.tenantbasededuportal.dtos.profile.ChangePasswordRequestDto;
-import com.fts.tenantbasededuportal.dtos.profile.ProfileResponseDto;
-import com.fts.tenantbasededuportal.dtos.profile.UpdateProfileRequestDto;
+import com.fts.tenantbasededuportal.dto.profile.ChangePasswordRequestDto;
+import com.fts.tenantbasededuportal.dto.profile.ProfileResponseDto;
+import com.fts.tenantbasededuportal.dto.profile.UpdateProfileRequestDto;
 import com.fts.tenantbasededuportal.service.ProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

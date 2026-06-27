@@ -1,6 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
-import com.fts.tenantbasededuportal.dtos.user.*;
+import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
@@ -55,12 +55,12 @@ public class UserService {
         //checks if the logged-in user is super admin if so allows the operation.
         if(RoleConstants.SUPER_ADMIN.equals(roleName)){
 
-            users = this.userRepository.findAll();
+            users = this.userRepository.findByDeletedFalse();
         }
         //checks if the logged-in user is org admin if so allows the operation.
         else if (RoleConstants.ORG_ADMIN.equals(roleName)) {
 
-            users = this.userRepository.findByOrganization(
+            users = this.userRepository.findByOrganizationAndDeletedFalse(
                     currentUser.getOrganization());
         }
         //deny the operation for users.
@@ -108,7 +108,7 @@ public class UserService {
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
-        final User targetUser = this.userRepository.findById(id)
+        final User targetUser = this.userRepository.findByIdAndDeletedFalse(id)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                         "User not found."));
 
@@ -208,7 +208,7 @@ public class UserService {
             if (request.getOrganizationId() != null){
 
                 organization = this.organizationRepository
-                        .findById(request.getOrganizationId())
+                        .findByIdAndDeletedFalse(request.getOrganizationId())
                         .orElseThrow(()->new ResourceNotFoundException(
                                 "Organization not found"));
             }
@@ -220,12 +220,7 @@ public class UserService {
         else if (RoleConstants.ORG_ADMIN.equals(currentRole)) {
 
             //if current user is org admin then can only create users in own org.
-            if(!RoleConstants.USER.equals(requestedRole)){
-
-                throw new UnauthorizedException(
-                        "Organization admins can only create users");
-            }
-
+            //and the role is always user.
             role = this.roleRepository.findByName(RoleConstants.USER)
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Role not found"));
@@ -285,7 +280,7 @@ public class UserService {
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
-        final User targetUser = this.userRepository.findById(id)
+        final User targetUser = this.userRepository.findByIdAndDeletedFalse(id)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                         "User not found."));
 
@@ -374,7 +369,7 @@ public class UserService {
                 && request.getOrganizationId() != null) {
 
             final Organization organization = this.organizationRepository
-                            .findById(request.getOrganizationId())
+                            .findByIdAndDeletedFalse(request.getOrganizationId())
                             .orElseThrow(() ->
                                     new ResourceNotFoundException(
                                             "Organization not found."));
@@ -449,8 +444,7 @@ public class UserService {
         if (Boolean.TRUE.equals(targetUser.getDeleted())) {
 
             throw new BadRequestException(
-                    "User is already deleted."
-            );
+                    "User is already deleted.");
         }
 
         //if not already deleted sets the target deleted to true (soft delete).
@@ -469,17 +463,39 @@ public class UserService {
     //performs a PUT operation and bulk uploads users to DB.
     //only org admins can bulk upload.
     public BulkUploadResponseDto bulkUploadUsers(
-            final MultipartFile file){
+            final MultipartFile file, final String organizationId){
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
-        //checks if current user is org admin.
-        if (!RoleConstants.ORG_ADMIN.equals(
-                currentUser.getRole().getName())){
+        final String currentRole = currentUser.getRole().getName();
+
+        //checks if current user is super admin or org admin.
+        if (!RoleConstants.SUPER_ADMIN.equals(currentRole)&&
+                !RoleConstants.ORG_ADMIN.equals(currentRole)){
 
             throw new UnauthorizedException(
-                    "Only org_admins can bulk upload users.");
+                    "You are not authorized to bulk upload users.");
         }
+
+        final Organization targetOrganization;
+
+        if (RoleConstants.SUPER_ADMIN.equals(currentRole)){
+
+            if (organizationId == null || organizationId.isBlank()){
+
+                throw new BadRequestException("organization Id is required");
+            }
+
+            targetOrganization = organizationRepository.findByIdAndDeletedFalse(organizationId)
+                    .orElseThrow(()-> new ResourceNotFoundException("Organization not found"));
+
+        }
+        else {
+
+            targetOrganization = currentUser.getOrganization();
+        }
+
+
 
         final String fileName = file.getOriginalFilename();
 
@@ -491,12 +507,12 @@ public class UserService {
 
         if (fileName.endsWith(".csv")){
 
-            return uploadCsv(file, currentUser, false, null);
+            return uploadCsv(file, currentUser,  targetOrganization);
         }
 
         if (fileName.endsWith(".xlsx")){
 
-            return uploadExcel(file, currentUser, false, null);
+            return uploadExcel(file, currentUser,  targetOrganization);
         }
 
         throw new BadRequestException(
@@ -507,7 +523,10 @@ public class UserService {
     //takes file, current user, a boolean restore and organization id as parameters based on the operation.
     private BulkUploadResponseDto uploadCsv
             (final MultipartFile file, final User currentUser,
-             final boolean restore, final Organization restoreOrganization ) {
+             final Organization targetOrganization ) {
+
+        final Role userRole = this.roleRepository.findByName(RoleConstants.USER)
+                .orElseThrow(()-> new ResourceNotFoundException("Role not found."));
 
         final List<User> users = new ArrayList<>();
 
@@ -534,18 +553,6 @@ public class UserService {
             && !header.equalsIgnoreCase("email,password,firstName,secondName")) {
 
                 throw new BadRequestException("Invalid CSV header.");
-            }
-
-            Role userRole = null;
-
-            /*checks if we are restoring and if we are then sets role to user.
-            can only bulk restore users in an org.
-             */
-            if(!restore){
-
-                userRole = this.roleRepository.findByName(
-                        RoleConstants.USER).orElseThrow(() ->
-                        new ResourceNotFoundException("Role not found."));
             }
 
             //main loop runs till the next line in file is null.
@@ -580,32 +587,6 @@ public class UserService {
                 final User existingUser = this.userRepository.findByEmail(email)
                         .orElse(null);
 
-                //runs if we are bulk restoring
-                if(restore){
-
-                    if (existingUser == null){
-
-                        skipped++;
-                        continue;
-                    }
-
-                    if (!existingUser.getDeleted()){
-
-                        skipped++;
-                        continue;
-                    }
-
-                    //restores (sets existing user false)
-                    existingUser.setDeleted(false);
-
-                    existingUser.setOrganization(restoreOrganization);
-
-                    this.userRepository.save(existingUser);
-
-                    processed++;
-                    continue;
-                }
-
                 if (existingUser != null){
 
                     skipped++;
@@ -618,7 +599,7 @@ public class UserService {
                         .secondName(secondName)
                         .password(this.passwordEncoder.encode(password))
                         .role(userRole)
-                        .organization(currentUser.getOrganization())
+                        .organization(targetOrganization)
                         .deleted(false)
                         .mfaEnabled(false)
                         .build();
@@ -628,29 +609,14 @@ public class UserService {
                 processed++;
             }
 
-            if (!restore){
+            this.userRepository.saveAll(users);
 
-                this.userRepository.saveAll(users);
-            }
-
-            if (restore){
-
-                this.auditService.log(
-                        currentUser,
-                        "BULK_RESTORE_USERS",
-                        "USER",
-                        restoreOrganization.getId(),
-                        "Bulk restored " + processed + " users from CSV.");
-            }
-            else{
-
-                this.auditService.log(
-                        currentUser,
-                        "BULK_UPLOAD_USERS",
-                        "USER",
-                        null,
-                        "Bulk uploaded " + processed + " users from CSV");
-            }
+            this.auditService.log(
+                    currentUser,
+                    "BULK_UPLOAD_USERS",
+                    "USER",
+                    null,
+                    "Bulk uploaded " + processed + " users from CSV");
 
             return BulkUploadResponseDto.builder()
                     .totalRecords(total)
@@ -672,7 +638,10 @@ public class UserService {
     //method for bulk upload and restore users.
     private BulkUploadResponseDto uploadExcel
             (final MultipartFile file, final User currentUser,
-             final boolean restore, final Organization restoreOrganization) {
+             final Organization targetOrganization) {
+
+        final Role userRole = this.roleRepository.findByName(RoleConstants.USER)
+                .orElseThrow(()-> new ResourceNotFoundException("Role not found."));
 
         final List<User> users = new ArrayList<>();
 
@@ -732,18 +701,6 @@ public class UserService {
 
             }
 
-            Role userRole = null;
-
-            /*checks if we are restoring and if we are then sets role to user.
-            can only bulk restore users in an org.
-             */
-            if(!restore){
-
-                userRole = this.roleRepository.findByName(
-                        RoleConstants.USER).orElseThrow(()->
-                        new ResourceNotFoundException("Role not found."));
-            }
-
             //main loop.
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
 
@@ -794,32 +751,6 @@ public class UserService {
                 final User existingUser = this.userRepository.findByEmail(email)
                         .orElse(null);
 
-                //runs if restoring.
-                if(restore){
-
-                    if (existingUser == null){
-
-                        skipped++;
-                        continue;
-                    }
-
-                    //skips if not deleted
-                    if (!existingUser.getDeleted()){
-
-                        skipped++;
-                        continue;
-                    }
-
-                    existingUser.setDeleted(false);
-
-                    existingUser.setOrganization(restoreOrganization);
-
-                    this.userRepository.save(existingUser);
-
-                    processed++;
-                    continue;
-                }
-
                 if (existingUser != null){
 
                     skipped++;
@@ -832,7 +763,7 @@ public class UserService {
                         .secondName(secondName)
                         .password(this.passwordEncoder.encode(password))
                         .role(userRole)
-                        .organization(currentUser.getOrganization())
+                        .organization(targetOrganization)
                         .deleted(false)
                         .mfaEnabled(false)
                         .build();
@@ -842,29 +773,14 @@ public class UserService {
                 processed++;
             }
 
-            if (!restore){
+            this.userRepository.saveAll(users);
 
-                this.userRepository.saveAll(users);
-            }
-
-            if (restore){
-
-                this.auditService.log(
-                        currentUser,
-                        "BULK_RESTORE_USERS",
-                        "USER",
-                        restoreOrganization.getId(),
-                        "Bulk restored " + processed + " users from Excel.");
-            }
-            else{
-
-                this.auditService.log(
-                        currentUser,
-                        "BULK_UPLOAD_USERS",
-                        "USER",
-                        null,
-                        "Bulk uploaded " + processed + " users from Excel");
-            }
+            this.auditService.log(
+                    currentUser,
+                    "BULK_UPLOAD_USERS",
+                    "USER",
+                    null,
+                    "Bulk uploaded " + processed + " users from Excel");
 
             return BulkUploadResponseDto.builder()
                     .totalRecords(total)
@@ -896,19 +812,17 @@ public class UserService {
         }
 
         final Organization organization = this.organizationRepository
-                        .findById(organizationId)
+                        .findByIdAndDeletedFalse(organizationId)
                         .orElseThrow(() -> new ResourceNotFoundException
                                 ("Organization not found."));
 
         final List<User> users = this.userRepository
-                        .findByOrganization(organization);
+                        .findByOrganizationAndDeletedFalse(organization);
 
         //loops through org users of given org id and sets deleted and org as true and null.
         for (User user : users) {
 
             user.setDeleted(true);
-
-            user.setOrganization(null);
         }
 
         this.userRepository.saveAll(users);
@@ -937,6 +851,12 @@ public class UserService {
         final User targetUser = this.userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        if (targetUser.getOrganization() != null && Boolean.TRUE.equals(
+                targetUser.getOrganization().getDeleted())) {
+
+            throw new BadRequestException("Restore the organization first.");
+        }
+
         if(!targetUser.getDeleted()){
 
             throw new BadRequestException("User already active.");
@@ -951,8 +871,8 @@ public class UserService {
                 throw new UnauthorizedException("Organization Admins can only restore users.");
             }
 
-            if(targetUser.getOrganization() == null || !targetUser.getOrganization()
-                    .getId().equals(currentUser.getOrganization().getId())){
+            if(!targetUser.getOrganization().getId()
+                    .equals(currentUser.getOrganization().getId())){
 
                 throw new UnauthorizedException
                         ("you can only restore users in your own organization");
@@ -971,7 +891,7 @@ public class UserService {
             }
 
             final Organization organization = this.organizationRepository
-                    .findById(request.getOrganizationId())
+                    .findByIdAndDeletedFalse(request.getOrganizationId())
                     .orElseThrow(()-> new ResourceNotFoundException
                             ("Organization not found"));
 
@@ -1006,54 +926,5 @@ public class UserService {
                 .deleted(targetUser.getDeleted())
                 .mfaEnabled(targetUser.getMfaEnabled())
                 .build();
-    }
-
-
-    //performs a POST operation and bulk restores users with a file.
-    //can be done by org admin and super admin.
-    public BulkUploadResponseDto bulkRestoreUsers(final MultipartFile file,
-                                                  final String organizationId){
-
-        final User currentUser = this.securityUtil.getCurrentUser();
-
-        final Organization organization = this.organizationRepository
-                .findById(organizationId).orElseThrow(()->
-                        new ResourceNotFoundException("Organization not found"));
-
-        final String roleName = currentUser.getRole().getName();
-
-        //checks if current user is user and if so block them.
-        if (!RoleConstants.SUPER_ADMIN.equals(roleName)
-                && !RoleConstants.ORG_ADMIN.equals(roleName)) {
-
-            throw new UnauthorizedException("You are not authorized to bulk restore users.");
-        }
-
-        //checks if org admin then can only restore their own org users.
-        if (RoleConstants.ORG_ADMIN.equals(currentUser.getRole().getName())
-                && !organization.getId().equals(currentUser.getOrganization().getId())) {
-
-            throw new UnauthorizedException(
-                    "You can only restore users to your own organization.");
-        }
-
-        final String fileName = file.getOriginalFilename();
-
-        if (fileName == null){
-
-            throw new BadRequestException("File is missing");
-        }
-
-        if (fileName.endsWith(".csv")){
-
-            return uploadCsv(file, currentUser, true, organization);
-        }
-
-        if (fileName.endsWith(".xlsx")){
-
-            return uploadExcel(file, currentUser, true, organization);
-        }
-
-        throw new BadRequestException("Only CSV and XLSX files are supported");
     }
 }

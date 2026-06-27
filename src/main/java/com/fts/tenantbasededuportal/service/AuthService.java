@@ -1,6 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
-import com.fts.tenantbasededuportal.dtos.auth.*;
+import com.fts.tenantbasededuportal.dto.auth.*;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.RolePermission;
 import com.fts.tenantbasededuportal.entity.User;

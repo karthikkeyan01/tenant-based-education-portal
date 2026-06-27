@@ -1,4 +1,4 @@
-package com.fts.tenantbasededuportal.dtos.user;
+package com.fts.tenantbasededuportal.dto.user;
 
 import lombok.*;
 

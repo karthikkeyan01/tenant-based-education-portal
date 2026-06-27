@@ -1,6 +1,6 @@
 package com.fts.tenantbasededuportal.controller;
 
-import com.fts.tenantbasededuportal.dtos.organization.CreateOrganizationRequestDto;
+import com.fts.tenantbasededuportal.dto.organization.CreateOrganizationRequestDto;
 import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.service.OrganizationService;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +54,15 @@ public class OrganizationController {
             (@PathVariable final String id) {
 
         this.organizationService.deleteOrganization(id);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAuthority('RESTORE_ORGANIZATION')")
+    @PutMapping("/{id}/restore")
+    public ResponseEntity<Void> restoreOrganization(@PathVariable final String id){
+
+        this.organizationService.restoreOrganization(id);
 
         return ResponseEntity.noContent().build();
     }

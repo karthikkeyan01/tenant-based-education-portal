@@ -82,6 +82,7 @@ public class DataInitializer implements CommandLineRunner {
                 "VIEW_ORGANIZATIONS",
                 "UPDATE_ORGANIZATION",
                 "DELETE_ORGANIZATION",
+                "RESTORE_ORGANIZATION",
                 "MANAGE_SYSTEM"
         };
 
@@ -122,8 +123,7 @@ public class DataInitializer implements CommandLineRunner {
                 "DELETE_USER",
                 "VIEW_PROFILE",
                 "UPDATE_PROFILE",
-                "CHANGE_PASSWORD",
-                "VIEW_ORGANIZATIONS"
+                "CHANGE_PASSWORD"
         );
 
         this.assignPermissions(

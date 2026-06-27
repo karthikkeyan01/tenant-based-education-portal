@@ -1,7 +1,6 @@
 package com.fts.tenantbasededuportal.security;
 
-import com.fts.tenantbasededuportal.entity.RolePermission;
-import com.fts.tenantbasededuportal.entity.User;
+import com.fts.tenantbasededuportal.entity.Role;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -16,9 +15,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserPrincipal implements UserDetails {
 
-    private final User user;
-
-    private final List<RolePermission> rolePermissions;
+    private String id;
+    private String email;
+    private String firstName;
+    private String secondName;
+    private Role roles;
 
 
     @Override
@@ -26,11 +27,8 @@ public class UserPrincipal implements UserDetails {
 
         final List<GrantedAuthority> authorities = new ArrayList<>();
 
-        for(final RolePermission rolePermission : this.rolePermissions) {
-
             authorities.add(new SimpleGrantedAuthority(
-                    rolePermission.getPermission().getName()));
-        }
+                    this.roles.getName()));
         return authorities;
     }
 
@@ -64,7 +62,4 @@ public class UserPrincipal implements UserDetails {
         return !this.user.getDeleted();
     }
 
-    public String getRoleName(){
-        return this.user.getRole().getName();
-    }
 }

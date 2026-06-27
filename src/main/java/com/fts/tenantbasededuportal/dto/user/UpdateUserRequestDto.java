@@ -1,6 +1,5 @@
-package com.fts.tenantbasededuportal.dtos.user;
+package com.fts.tenantbasededuportal.dto.user;
 
-import com.fts.tenantbasededuportal.entity.Role;
 import lombok.*;
 
 @Getter

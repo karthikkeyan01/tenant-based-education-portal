@@ -17,5 +17,11 @@ public interface UserRepository extends JpaRepository<User,String> {
 
     List<User> findByOrganization(Organization organization);
 
-    boolean existsByOrganizationAndDeletedFalse(Organization organization);
+    Optional<User> findByIdAndActiveTrue(String id);
+
+    List<User> findByActiveTrue();
+
+    List<User> findByOrganizationAndActiveTrue(Organization organization);
+
+    boolean existsByOrganizationAndActiveTrue(Organization organization);
 }

@@ -28,7 +28,7 @@ public class User extends BaseEntity{
 
     private String secondName;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)    //
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
@@ -37,7 +37,11 @@ public class User extends BaseEntity{
     private Organization organization;
 
     @Column(nullable = false)
-    private Boolean deleted = false;
+    private Boolean active = false;
+
+    private String activationToken;
+
+    private Instant activationTokenExpiresAt;
 
     @Column(nullable = false)
     private Boolean mfaEnabled = false;

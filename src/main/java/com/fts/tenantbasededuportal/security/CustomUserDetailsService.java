@@ -1,6 +1,5 @@
 package com.fts.tenantbasededuportal.security;
 
-import com.fts.tenantbasededuportal.entity.RolePermission;
 import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.repository.RolePermissionRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
@@ -10,11 +9,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
-public class MyUserDetailsService
+public class CustomUserDetailsService
         implements UserDetailsService {
 
     private final UserRepository userRepository;
@@ -28,15 +25,17 @@ public class MyUserDetailsService
                         .orElseThrow(() -> new UsernameNotFoundException(
                                         "User not found : " + email));
 
-        final List<RolePermission> rolePermissions =
-                this.rolePermissionRepository
-                        .findByRole(user.getRole());
-
         if (Boolean.TRUE.equals(user.getDeleted())) {
 
             throw new UsernameNotFoundException("User account is inactive");
         }
 
-        return new UserPrincipal(user, rolePermissions);
+        if (user.getOrganization() != null && Boolean.TRUE.equals(
+                user.getOrganization().getDeleted())){
+
+            throw new UsernameNotFoundException("Your organization is Inactive");
+        }
+
+        return new UserPrincipal(user, user.getRole());
     }
 }

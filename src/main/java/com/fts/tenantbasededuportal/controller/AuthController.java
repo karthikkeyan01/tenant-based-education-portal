@@ -1,6 +1,6 @@
 package com.fts.tenantbasededuportal.controller;
 
-import com.fts.tenantbasededuportal.dtos.auth.*;
+import com.fts.tenantbasededuportal.dto.auth.*;
 import com.fts.tenantbasededuportal.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

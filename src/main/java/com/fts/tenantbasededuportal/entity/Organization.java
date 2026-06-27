@@ -18,4 +18,8 @@ public class Organization extends BaseEntity {
 
     @Column(nullable = false)
     private String name;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean active = false;
 }

@@ -1,6 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
-import com.fts.tenantbasededuportal.dtos.organization.CreateOrganizationRequestDto;
+import com.fts.tenantbasededuportal.dto.organization.CreateOrganizationRequestDto;
 import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
@@ -13,6 +13,7 @@ import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +33,16 @@ public class OrganizationService {
 
         final User currentUser = securityUtil.getCurrentUser();
 
-        if (this.organizationRepository.existsByName(request.getName())) {
+        final Optional<Organization> existingOrganization = this.organizationRepository.
+                findByName(request.getName());
+
+        if (existingOrganization.isPresent()) {
+
+            if (Boolean.TRUE.equals(existingOrganization.get().getDeleted())){
+
+                throw new BadRequestException
+                        ("Organization exists but is inactive. Restore it instead");
+            }
 
             throw new BadRequestException("Organization already exists");
         }
@@ -72,22 +82,10 @@ public class OrganizationService {
                     null,
                     "Viewed organizations list");
 
-            return this.organizationRepository.findAll();
+            return this.organizationRepository.findByDeletedFalse();
 
         }
-        //checks if logged-in user is org admin.
-        else if (RoleConstants.ORG_ADMIN.equals(roleName)) {
-
-            this.auditService.log(
-                    currentUser,
-                    "VIEW_ORGANIZATIONS",
-                    "ORGANIZATION",
-                    null,
-                    "Viewed organizations list");
-
-            return List.of(currentUser.getOrganization());
-
-        } else {
+        else {
 
             throw new UnauthorizedException(
                     "You are not authorized to perform this action");
@@ -95,26 +93,18 @@ public class OrganizationService {
     }
 
     //performs a GET operation and fetches organization based on org id.
-    //can be accessed by both org and super admin.
+    //can be accessed by super admin.
     public Organization fetchOrganizationById(final String id) {
 
         final User currentUser = securityUtil.getCurrentUser();
-
-        final String roleName = currentUser.getRole().getName();
 
         final Organization organization = this.organizationRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException
                         ("Organization with id " + id + " not found"));
 
-        //org admin cannot access other orgs
-        if (RoleConstants.ORG_ADMIN.equals(roleName)) {
+        if(organization.getDeleted()) {
 
-            if(currentUser.getOrganization() == null
-            || !currentUser.getOrganization().getId().equals(id)){
-
-                throw new UnauthorizedException(
-                        "you cannot access another organization");
-            }
+            throw new ResourceNotFoundException("Organization is not found");
         }
 
         this.auditService.log(
@@ -135,7 +125,7 @@ public class OrganizationService {
         final User currentUser = securityUtil.getCurrentUser();
 
         final Organization organization =
-                this.organizationRepository.findById(id).orElseThrow(
+                this.organizationRepository.findByIdAndDeletedFalse(id).orElseThrow(
                         () -> new ResourceNotFoundException
                                 ("Organization with id " + id + " not found"));
 
@@ -179,13 +169,23 @@ public class OrganizationService {
                         new ResourceNotFoundException(
                                 "Organization with id " + id + " not found"));
 
-        if (this.userRepository.existsByOrganizationAndDeletedFalse(organization)) {
+        final List<User> users = this.userRepository.findByOrganization(organization);
 
-            throw new BadRequestException
-                    ("Organization contains users and cannot be deleted");
+        if(organization.getDeleted()){
+
+            throw new BadRequestException("Organization already deleted");
         }
 
-        this.organizationRepository.delete(organization);
+        for (User user : users){
+
+            user.setDeleted(true);
+        }
+
+        this.userRepository.saveAll(users);
+
+        organization.setDeleted(true);
+
+        this.organizationRepository.save(organization);
 
         this.auditService.log(
                 currentUser,
@@ -193,5 +193,38 @@ public class OrganizationService {
                 "ORGANIZATION",
                 organization.getId(),
                 "Deleted organization " + organization.getName());
+    }
+
+    public void restoreOrganization(final String id){
+
+        final User currentUser = securityUtil.getCurrentUser();
+
+        final Organization organization = organizationRepository.findById(id).orElseThrow(
+                ()-> new ResourceNotFoundException("Organization not found"));
+
+        if(!organization.getDeleted()){
+
+            throw new BadRequestException("Organization already active");
+        }
+
+        organization.setDeleted(false);
+
+//        List<User> users = userRepository.findByOrganization(organization);
+//
+//        for (User user : users){
+//
+//            user.setDeleted(false);
+//        }
+//
+//        userRepository.saveAll(users);
+
+        organizationRepository.save(organization);
+
+        auditService.log(
+                currentUser,
+                "RESTORE_ORGANIZATION",
+                "ORGANIZATION",
+                organization.getId(),
+                "Restored organization " + organization.getName());
     }
 }

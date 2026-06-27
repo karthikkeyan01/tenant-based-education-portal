@@ -1,8 +1,8 @@
 package com.fts.tenantbasededuportal.service;
 
-import com.fts.tenantbasededuportal.dtos.profile.ChangePasswordRequestDto;
-import com.fts.tenantbasededuportal.dtos.profile.ProfileResponseDto;
-import com.fts.tenantbasededuportal.dtos.profile.UpdateProfileRequestDto;
+import com.fts.tenantbasededuportal.dto.profile.ChangePasswordRequestDto;
+import com.fts.tenantbasededuportal.dto.profile.ProfileResponseDto;
+import com.fts.tenantbasededuportal.dto.profile.UpdateProfileRequestDto;
 import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
 import com.fts.tenantbasededuportal.repository.UserRepository;

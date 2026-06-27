@@ -1,6 +1,6 @@
 package com.fts.tenantbasededuportal.controller;
 
-import com.fts.tenantbasededuportal.dtos.user.*;
+import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +30,7 @@ public class UserController {
         return this.userService.fetchUserById(id);
     }
 
-    @PreAuthorize("hasAuthority('CREATE_USER')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @PostMapping
     public UserResponseDto createUser(
             @RequestBody final CreateUserRequestDto request) {
@@ -59,10 +59,11 @@ public class UserController {
 
     @PreAuthorize("hasAuthority('CREATE_USER')")
     @PostMapping("/bulk-upload")
-    public BulkUploadResponseDto uploadFile
-            (@RequestParam("file") final MultipartFile file) {
+    public BulkUploadResponseDto bulkUploadFile
+            (@RequestParam("file") final MultipartFile file,
+             @RequestParam(required = false) final String organizationId) {
 
-        return this.userService.bulkUploadUsers(file);
+        return this.userService.bulkUploadUsers(file, organizationId);
     }
 
     @PreAuthorize("hasAuthority('MANAGE_USER')")
@@ -71,15 +72,6 @@ public class UserController {
                                        @RequestBody final RestoreUserRequestDto request){
 
         return this.userService.restoreUser(id, request);
-    }
-
-    @PreAuthorize("hasAuthority('MANAGE_USER')")
-    @PostMapping("/bulk-restore")
-    public BulkUploadResponseDto bulkRestoreUsers(
-            @RequestParam("file") final MultipartFile file,
-            @RequestParam("organizationId") final String organizationId) {
-
-        return this.userService.bulkRestoreUsers(file, organizationId);
     }
 
     @PreAuthorize("hasAuthority('DELETE_USER')")
