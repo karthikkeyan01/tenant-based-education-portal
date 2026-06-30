@@ -1,12 +1,11 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
 import com.fts.tenantbasededuportal.dto.auth.*;
 import com.fts.tenantbasededuportal.entity.Role;
-import com.fts.tenantbasededuportal.entity.RolePermission;
 import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
 import com.fts.tenantbasededuportal.exception.UnauthorizedException;
-import com.fts.tenantbasededuportal.repository.RolePermissionRepository;
 import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.security.JwtService;
@@ -14,6 +13,7 @@ import com.fts.tenantbasededuportal.security.UserPrincipal;
 import com.fts.tenantbasededuportal.util.RoleConstants;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,8 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -38,43 +37,56 @@ public class AuthService {
 
     private final JwtService jwtService;
 
+    private final OtpGeneratorService otpGeneratorService;
+
     private final AuditService auditService;
 
     private final EmailService emailService;
 
-    private final RolePermissionRepository  rolePermissionRepository;
+    private final TokenGeneratorService tokenGeneratorService;
 
     private final SecurityUtil  securityUtil;
 
+    @Value("${app.base-url}")
+    private String baseUrl;
+
     public void register(final RegisterRequestDto request){
 
-        if(this.userRepository.existsByEmail(request.getEmail())){
+        if (this.userRepository.existsByEmail(request.getEmail())){
             throw new BadRequestException("Email already exists");
         }
 
         final Role userRole = this.roleRepository.findByName(RoleConstants.USER)
                 .orElseThrow(() -> new BadRequestException(
-                        "Default User role not found"));
+                        "User role not found"));
 
         final User user = User.builder()
                 .email(request.getEmail())
                 .password(this.passwordEncoder.encode(request.getPassword()))
                 .role(userRole)
-                .deleted(false)
+                .organization(null)
+                .active(true)
                 .mfaEnabled(false)
                 .otp(null)
                 .otpExpiresAt(null)
+                .activationToken(null)
+                .activationTokenExpiresAt(null)
+                .resetPasswordToken(null)
+                .resetPasswordTokenExpiresAt(null)
                 .lastLoginAt(null)
                 .build();
 
         this.userRepository.save(user);
 
         this.auditService.log(
-                user,
-                "REGISTER",
-                "USER",
-                user.getId(),
-                "User registered with email " + user.getEmail());
+                AuditRequestDto.builder()
+                        .user(user)
+                        .action("REGISTER")
+                        .entityAffected("AUTH")
+                        .entityId(user.getId())
+                        .description("Individual user registered.")
+                        .build());
+
     }
 
     public LoginResponseDto login(final LoginRequestDto request){
@@ -87,41 +99,35 @@ public class AuthService {
         final UserPrincipal userPrincipal =
                 (UserPrincipal) authentication.getPrincipal();
 
-        if (userPrincipal == null) {
-            throw new UnauthorizedException(
-                    "Authenticated user not found");
-        }
-
-        final User user = userPrincipal.getUser();
-
-        if (Boolean.TRUE.equals(user.getDeleted())) {
-
-            throw new UnauthorizedException("User account is inactive.");
-        }
+        final User user = this.userRepository.findByIdAndActiveTrue(
+                        userPrincipal.getId())
+                .orElseThrow(() -> new BadRequestException(
+                        "User not found."));
 
         if (Boolean.TRUE.equals(user.getMfaEnabled())){
 
-            String otp = String.valueOf(ThreadLocalRandom.current()
-                    .nextInt(100000, 1000000));
+            final String otp = this.otpGeneratorService.generateOtp();
 
             user.setOtp(this.passwordEncoder.encode(otp));
 
-            user.setOtpExpiresAt(Instant.now().plusSeconds(300));
+            user.setOtpExpiresAt(Instant.now().plus(5, ChronoUnit.MINUTES));
 
             this.userRepository.save(user);
 
             this.emailService.sendOtpMail(user.getEmail(), otp);
 
             this.auditService.log(
-                    user,
-                    "LOGIN_MFA_REQUIRED",
-                    "USER",
-                    user.getId(),
-                    "MFA OTP sent during login");
+                    AuditRequestDto.builder()
+                            .user(user)
+                            .action("LOGIN")
+                            .entityAffected("AUTH")
+                            .entityId(user.getId())
+                            .description("OTP sent for login.")
+                            .build());
 
             return LoginResponseDto.builder()
                     .email(user.getEmail())
-                    .role(userPrincipal.getRoleName())
+                    .role(userPrincipal.getRole())
                     .mfaRequired(true)
                     .message("OTP sent to your email. Please verify MFA.")
                     .build();
@@ -133,27 +139,29 @@ public class AuthService {
 
         this.userRepository.save(user);
 
-        this.auditService.log(
-                user,
-                "LOGIN",
-                "USER",
-                user.getId(),
-                "User logged in");
+        this.auditService.log(AuditRequestDto.builder()
+                        .user(user)
+                        .action("LOGIN")
+                        .entityAffected("AUTH")
+                        .entityId(user.getId())
+                        .description("User logged in.")
+                        .build());
 
         return LoginResponseDto.builder()
                 .accessToken(token)
                 .email(userPrincipal.getUsername())
-                .role(userPrincipal.getRoleName())
+                .role(userPrincipal.getRole())
                 .mfaRequired(false)
                 .message("Login Successful.")
                 .build();
     }
 
-    public LoginResponseDto verifyMfa(final VerifyMfaRequestDto request){
+    public LoginResponseDto verifyOtp(final String email, final String otp){
 
         final User user = this.userRepository
-                .findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadRequestException("Email not found"));
+                .findByEmailAndActiveTrue(email)
+                .orElseThrow(() -> new UnauthorizedException(
+                        "invalid email or OTP."));
 
         if (!Boolean.TRUE.equals(user.getMfaEnabled())) {
 
@@ -162,7 +170,7 @@ public class AuthService {
 
         if (user.getOtp() == null || user.getOtpExpiresAt() == null) {
 
-            throw new BadRequestException("No OTP request found");
+            throw new BadRequestException("No OTP has been generated");
 
         }
 
@@ -173,89 +181,198 @@ public class AuthService {
 
             this.userRepository.save(user);
 
-            throw new BadRequestException("OTP expired");
+            throw new BadRequestException("OTP has expired");
         }
 
-        if (!this.passwordEncoder.matches(request.getOtp(), user.getOtp())) {
+        if (!this.passwordEncoder.matches(otp, user.getOtp())) {
 
             throw new BadRequestException("Invalid OTP");
         }
 
-        final List<RolePermission> rolePermissions = this.rolePermissionRepository
-                .findByRole(user.getRole());
-
-        final UserPrincipal userPrincipal = new UserPrincipal(user, rolePermissions);
-
-        final String token = this.jwtService.generateToken(userPrincipal);
-
         user.setOtp(null);
-
         user.setOtpExpiresAt(null);
-
         user.setLastLoginAt(Instant.now());
 
         this.userRepository.save(user);
 
+        final UserPrincipal principal = new UserPrincipal(user.getId(),
+                user.getEmail(),
+                user.getPassword(),
+                user.getOrganization() != null
+                        ? user.getOrganization().getId()
+                        : null,
+                user.getRole().getName(),
+                user.getActive());
+
+        final String token = this.jwtService.generateToken(principal);
+
         this.auditService.log(
-                user,
-                "LOGIN",
-                "USER",
-                user.getId(),
-                "User logged in with MFA");
+                AuditRequestDto.builder()
+                        .user(user)
+                        .action("LOGIN")
+                        .entityAffected("AUTH")
+                        .entityId(user.getId())
+                        .description("User logged in using MFA.")
+                        .build());
 
         return LoginResponseDto.builder()
                 .accessToken(token)
                 .email(user.getEmail())
                 .role(user.getRole().getName())
                 .mfaRequired(false)
-                .message("MFA verification successful. User Logged in with MFA.")
+                .message("MFA verification successful.")
                 .build();
     }
 
-    public void resendOtp(final ResendOtpRequestDto request) {
+    public void resendOtp(final String email) {
 
-        final User user = this.userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadRequestException
-                        ("Email not found"));
+        final User user = this.userRepository.findByEmailAndActiveTrue(
+                email).orElseThrow(() ->
+                new UnauthorizedException("Invalid email."));
 
-        if (!Boolean.TRUE.equals(user.getMfaEnabled())) {
+        if (!user.getMfaEnabled()) {
 
             throw new BadRequestException("MFA is not enabled.");
         }
 
-        if (Boolean.TRUE.equals(user.getDeleted())) {
-
-            throw new UnauthorizedException("User account is inactive.");
-        }
-
-        final String otp = String.valueOf(ThreadLocalRandom.current()
-                                .nextInt(100000, 1000000));
+        final String otp = this.otpGeneratorService.generateOtp();
 
         user.setOtp(this.passwordEncoder.encode(otp));
 
-        user.setOtpExpiresAt(Instant.now().plusSeconds(300));
+        user.setOtpExpiresAt(Instant.now().plus(5, ChronoUnit.MINUTES));
 
         this.userRepository.save(user);
 
         this.emailService.sendOtpMail(user.getEmail(), otp);
 
         this.auditService.log(
-                user,
-                "RESEND_OTP",
-                "USER",
-                user.getId(),
-                "OTP resent for MFA verification");
+                AuditRequestDto.builder()
+                        .user(user)
+                        .action("RESEND_OTP")
+                        .entityAffected("AUTH")
+                        .entityId(user.getId())
+                        .description("OTP resent for MFA verification.")
+                        .build());
     }
 
-    public void logout(){
+    public void activateAccount(
+            final String token, final String password) {
+
+        final User user = this.userRepository
+                .findByActivationToken(token)
+                .orElseThrow(() -> new BadRequestException("Invalid token."));
+
+        if (user.getActive()) {
+
+            throw new BadRequestException(
+                    "Account is already activated.");
+        }
+
+        if (user.getActivationTokenExpiresAt() == null
+                || Instant.now().isAfter(
+                        user.getActivationTokenExpiresAt())) {
+
+            throw new BadRequestException("Activation link has expired.");
+        }
+
+        user.setPassword(this.passwordEncoder.encode(password));
+
+        user.setActive(true);
+
+        user.setActivationToken(null);
+
+        user.setActivationTokenExpiresAt(null);
+
+        this.userRepository.save(user);
+
+        this.auditService.log(
+                AuditRequestDto.builder()
+                        .user(user)
+                        .action("ACTIVATE_ACCOUNT")
+                        .entityAffected("AUTH")
+                        .entityId(user.getId())
+                        .description("User activated account using activation link.")
+                        .build());
+    }
+
+    public void forgotPassword(final String email) {
+
+        final User user = this.userRepository
+                .findByEmailAndActiveTrue(email)
+                .orElseThrow(() ->
+                        new UnauthorizedException
+                                ("If an account with that email exists, a password reset link has been sent."));
+
+        final String resetToken = this.tokenGeneratorService.generateToken();
+
+        user.setResetPasswordToken(resetToken);
+
+        user.setResetPasswordTokenExpiresAt(Instant.now()
+                .plus(15, ChronoUnit.MINUTES));
+
+        this.userRepository.save(user);
+
+        final String resetLink =
+                this.baseUrl +
+                        "/auth/reset-password?token=" +
+                        resetToken;
+
+        this.emailService.sendForgotPasswordMail(
+                user.getEmail(), resetLink);
+
+        this.auditService.log(
+                AuditRequestDto.builder()
+                        .user(user)
+                        .action("FORGOT_PASSWORD")
+                        .entityAffected("AUTH")
+                        .entityId(user.getId())
+                        .description(
+                                "Password reset link sent.")
+                        .build());
+    }
+
+    public void resetPassword(final String token, final String password) {
+
+        final User user = this.userRepository.findByResetPasswordToken(
+                token).orElseThrow(() -> new BadRequestException(
+                        "Invalid token."));
+
+        if (user.getResetPasswordTokenExpiresAt() == null
+                || Instant.now().isAfter(
+                user.getResetPasswordTokenExpiresAt())) {
+
+            throw new BadRequestException(
+                    "Reset password link has expired.");
+        }
+
+        user.setPassword(this.passwordEncoder.encode(password));
+
+        user.setResetPasswordToken(null);
+
+        user.setResetPasswordTokenExpiresAt(null);
+
+        this.userRepository.save(user);
+
+        this.auditService.log(
+                AuditRequestDto.builder()
+                        .user(user)
+                        .action("RESET_PASSWORD")
+                        .entityAffected("AUTH")
+                        .entityId(user.getId())
+                        .description("User reset password.")
+                        .build());
+    }
+
+    public void logout() {
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
-        this.auditService.log(
-                currentUser,
-                "LOGOUT",
-                "USER",
-                currentUser.getId(),
-                "User logged out");
+        this.auditService.log(AuditRequestDto.builder()
+                        .user(currentUser)
+                        .action("LOGOUT")
+                        .entityAffected("AUTH")
+                        .entityId(currentUser.getId())
+                        .description("User logged out.")
+                        .build());
     }
 }

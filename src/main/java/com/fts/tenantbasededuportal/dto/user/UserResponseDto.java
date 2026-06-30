@@ -17,13 +17,13 @@ public class UserResponseDto {
 
     private String firstName;
 
-    private String secondName;
+    private String lastName;
 
     private String roleName;
 
     private String organizationName;
 
-    private Boolean deleted;
+    private Boolean active;
 
     private Boolean mfaEnabled;
 

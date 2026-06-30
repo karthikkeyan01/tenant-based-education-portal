@@ -26,7 +26,7 @@ public class User extends BaseEntity{
 
     private String firstName;
 
-    private String secondName;
+    private String lastName;
 
     @ManyToOne(fetch = FetchType.LAZY)    //
     @JoinColumn(name = "role_id", nullable = false)
@@ -42,6 +42,10 @@ public class User extends BaseEntity{
     private String activationToken;
 
     private Instant activationTokenExpiresAt;
+
+    private String resetPasswordToken;
+
+    private Instant resetPasswordTokenExpiresAt;
 
     @Column(nullable = false)
     private Boolean mfaEnabled = false;

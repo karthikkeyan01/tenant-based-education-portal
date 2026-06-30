@@ -72,8 +72,6 @@ public class DataInitializer implements CommandLineRunner {
         final String[] permissions = {
                 "VIEW_USERS",
                 "CREATE_USER",
-                "UPDATE_USER",
-                "DELETE_USER",
                 "MANAGE_USER",
                 "VIEW_PROFILE",
                 "UPDATE_PROFILE",
@@ -81,8 +79,8 @@ public class DataInitializer implements CommandLineRunner {
                 "CREATE_ORGANIZATION",
                 "VIEW_ORGANIZATIONS",
                 "UPDATE_ORGANIZATION",
-                "DELETE_ORGANIZATION",
-                "RESTORE_ORGANIZATION",
+                "MANAGE_ORGANIZATION",
+                "VIEW_AUDIT_LOGS",
                 "MANAGE_SYSTEM"
         };
 
@@ -118,9 +116,7 @@ public class DataInitializer implements CommandLineRunner {
                 orgAdmin,
                 "VIEW_USERS",
                 "CREATE_USER",
-                "UPDATE_USER",
                 "MANAGE_USER",
-                "DELETE_USER",
                 "VIEW_PROFILE",
                 "UPDATE_PROFILE",
                 "CHANGE_PASSWORD"
@@ -198,7 +194,7 @@ public class DataInitializer implements CommandLineRunner {
         this.userRepository.save(User.builder()
                 .email(SUPER_ADMIN_EMAIL)
                 .password(password)
-                .deleted(false)
+                .active(true)
                 .role(superAdminRole)
                 .mfaEnabled(false)
                 .build()

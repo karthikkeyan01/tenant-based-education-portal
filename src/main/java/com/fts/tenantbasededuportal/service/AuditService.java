@@ -1,5 +1,7 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
+import com.fts.tenantbasededuportal.dto.audit.AuditResponseDto;
 import com.fts.tenantbasededuportal.entity.AuditLog;
 import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.repository.AuditLogRepository;
@@ -10,6 +12,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class AuditService {
@@ -18,13 +22,9 @@ public class AuditService {
 
     private final HttpServletRequest request;
 
-    public void log(final User user,
-                    final String action,
-                    final String entityAffected,
-                    final String entityId,
-                    final String details){
+    public void log(final AuditRequestDto requestDto){
 
-        String ipAddress = request.getHeader("X-Forwarded-For");
+        String ipAddress = this.request.getHeader("X-Forwarded-For");
 
         if (ipAddress == null || ipAddress.isBlank()) {
 
@@ -32,11 +32,11 @@ public class AuditService {
         }
 
         final AuditLog auditLog = AuditLog.builder()
-                .user(user)
-                .action(action)
-                .entityAffected(entityAffected)
-                .entityId(entityId)
-                .details(details)
+                .user(requestDto.getUser())
+                .action(requestDto.getAction())
+                .entityAffected(requestDto.getEntityAffected())
+                .entityId(requestDto.getEntityId())
+                .details(requestDto.getDescription())
                 .ipAddress(ipAddress)
                 .httpMethod(request.getMethod())
                 .requestUrl(request.getRequestURI())
@@ -45,16 +45,56 @@ public class AuditService {
         this.auditLogRepository.save(auditLog);
     }
 
-    public Page<AuditLog> getAuditLogs(final int page, final int size){
+    public Page<AuditResponseDto> getAuditLogs(final int page, final int size){
 
-        return this.auditLogRepository.findAll
-                (PageRequest.of(page, size, Sort.by("createdAt").descending()));
+        final Page<AuditLog> auditLogs =
+                this.auditLogRepository.findAll(PageRequest.of
+                        (page, size,
+                                Sort.by("createdAt").descending()));
+
+        return auditLogs.map(auditLog ->
+                AuditResponseDto.builder()
+                        .id(auditLog.getId())
+                        .userId(auditLog.getUser().getId())
+                        .userEmail(auditLog.getUser().getEmail())
+                        .action(auditLog.getAction())
+                        .entityAffected(auditLog.getEntityAffected())
+                        .entityId(auditLog.getEntityId())
+                        .description(auditLog.getDetails())
+                        .ipAddress(auditLog.getIpAddress())
+                        .requestUrl(auditLog.getRequestUrl())
+                        .httpMethod(auditLog.getHttpMethod())
+                        .createdAt(auditLog.getCreatedAt())
+                        .build());
     }
 
-    public Page<AuditLog> getAuditLogsByUser
-            (final String userId, final int page, final int size){
+    public Page<AuditResponseDto> getAuditLogsByUser(
+            final String userId,
+            final int page,
+            final int size) {
 
-        return this.auditLogRepository.findByUser_Id(userId,
-                PageRequest.of(page, size, Sort.by("createdAt").descending()));
+        final Page<AuditLog> auditLogs =
+                this.auditLogRepository.findByUser_Id(
+                        userId,
+                        PageRequest.of(
+                                page,
+                                size,
+                                Sort.by("createdAt").descending()));
+
+        return auditLogs.map(auditLog ->
+                AuditResponseDto.builder()
+                        .id(auditLog.getId())
+                        .userId(auditLog.getUser().getId())
+                        .userEmail(auditLog.getUser().getEmail())
+                        .action(auditLog.getAction())
+                        .entityAffected(auditLog.getEntityAffected())
+                        .entityId(auditLog.getEntityId())
+                        .description(auditLog.getDetails())
+                        .ipAddress(auditLog.getIpAddress())
+                        .requestUrl(auditLog.getRequestUrl())
+                        .httpMethod(auditLog.getHttpMethod())
+                        .createdAt(auditLog.getCreatedAt())
+                        .build());
+
     }
 }

@@ -5,7 +5,6 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -22,18 +21,26 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
+    private static final String EMAIL = "email";
+    private static final String ROLE = "role";
+    private static final String ORGANIZATION_ID = "organizationId";
+
 
     public String generateToken(final UserPrincipal userPrincipal) {
 
+
         final Map<String, Object> claims = new HashMap<>();
-        claims.put("role", userPrincipal.getRoles().getName());
-        claims.put("identity",)
+        claims.put(EMAIL, userPrincipal.getEmail());
+        claims.put(ROLE, userPrincipal.getRole());
+        claims.put(ORGANIZATION_ID, userPrincipal.getOrganizationId());
+
+        final Date now = new Date();
 
         return Jwts.builder()
                 .claims(claims)
-                .subject(userPrincipal.getUsername())
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + this.jwtExpiration))
+                .subject(userPrincipal.getId())
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + this.jwtExpiration))
                 .signWith(this.getKey())
                 .compact();
     }
@@ -43,13 +50,38 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String extractUsername(final String token) {
-        return  this.extractClaim(token, Claims::getSubject);
-    }
-
     private <T> T extractClaim(final String token, final Function<Claims, T> claimsResolver) {
+
         final Claims claims = this.extractAllClaims(token);
         return claimsResolver.apply(claims);
+    }
+
+    public String extractUserId(final String token) {
+
+        return this.extractClaim(token, Claims::getSubject);
+    }
+
+    public String extractEmail(final String token) {
+
+        return this.extractClaim(token,
+                claims -> claims
+                        .get(EMAIL, String.class));
+    }
+
+    public String extractRole(final String token) {
+
+        return this.extractClaim(
+                token,
+                claims -> claims
+                        .get(ROLE, String.class));
+    }
+
+    public String extractOrganizationId(final String token) {
+
+        return this.extractClaim(
+                token,
+                claims -> claims
+                        .get(ORGANIZATION_ID, String.class));
     }
 
     private Claims extractAllClaims(final String token) {
@@ -60,9 +92,10 @@ public class JwtService {
                 .getPayload();
     }
 
-    public boolean validateToken(final String token, final UserDetails userDetails) {
-        final String userName = this.extractUsername(token);
-        return (userName.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    public boolean validateToken(final String token, final UserPrincipal principal) {
+
+        return this.extractUserId(token).equals(principal.getId())
+                && !this.isTokenExpired(token);
     }
 
     private boolean isTokenExpired(final String token) {

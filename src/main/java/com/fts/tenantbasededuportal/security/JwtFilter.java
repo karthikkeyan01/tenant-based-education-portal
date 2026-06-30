@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -20,30 +19,37 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
 
-    private final MyUserDetailsService myUserDetailService;
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Override
-    protected void doFilterInternal(final HttpServletRequest request,final HttpServletResponse response, final FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(final HttpServletRequest request,
+                                    final HttpServletResponse response,
+                                    final FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        String email = null;
-        String token = null;
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        final String token = authHeader.substring(7);
 
         try {
 
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                token = authHeader.substring(7);
-                email = this.jwtService.extractUsername(token);
-            }
+            final String userId = this.jwtService.extractUserId(token);
 
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                final UserDetails userDetails = this.myUserDetailService.loadUserByUsername(email);
+                final UserPrincipal principal = this.customUserDetailsService.loadUserById(userId);
 
-                if (this.jwtService.validateToken(token, userDetails)) {
+                if (this.jwtService.validateToken(token, principal)) {
 
                     final UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                            new UsernamePasswordAuthenticationToken(principal,
+                                    null,
+                                    principal.getAuthorities());
+
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                     SecurityContextHolder.getContext().setAuthentication(authToken);
@@ -53,16 +59,9 @@ public class JwtFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         }
         catch (final Exception exception){
-            response.setStatus(
-                    HttpServletResponse.SC_UNAUTHORIZED
-            );
-
-            response.setContentType(
-                    "application/json"
-            );
-
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
-
             response.getWriter().write(
                     """
                     {
@@ -72,10 +71,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     }
                     """
             );
-
-            return;
         }
-
     }
 }
 

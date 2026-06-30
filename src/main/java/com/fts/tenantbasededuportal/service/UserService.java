@@ -1,9 +1,11 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
 import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
+import com.fts.tenantbasededuportal.enums.PermissionType;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
 import com.fts.tenantbasededuportal.exception.ResourceNotFoundException;
 import com.fts.tenantbasededuportal.exception.UnauthorizedException;
@@ -11,11 +13,16 @@ import com.fts.tenantbasededuportal.repository.OrganizationRepository;
 import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.fts.tenantbasededuportal.util.RoleConstants;
@@ -24,6 +31,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,25 +52,38 @@ public class UserService {
 
     private final AuditService auditService;
 
+    private final PermissionService permissionService;
+
+    private final PasswordGeneratorService passwordGeneratorService;
+
+    private final TokenGeneratorService tokenGeneratorService;
+
+    private final EmailService emailService;
+
+    @Value("${app.base-url}")
+    private String baseUrl;
+
     //Performs a GET operation and fetches all users from the DB.
-    public List<UserResponseDto> fetchUsers(){
+    public Page<UserResponseDto> fetchUsers(final Pageable pageable) {
+
+        this.permissionService.requirePermission(PermissionType.VIEW_USERS);
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
-        final String roleName = currentUser.getRole().getName();
-
-        final List<User> users;
+        final Page<User> users;
 
         //checks if the logged-in user is super admin if so allows the operation.
-        if(RoleConstants.SUPER_ADMIN.equals(roleName)){
+        if(this.securityUtil.isSuperAdmin()){
 
-            users = this.userRepository.findByDeletedFalse();
+            users = this.userRepository.findByActiveTrueAndIdNot (
+                    this.securityUtil.getCurrentUserId(), pageable);
         }
         //checks if the logged-in user is org admin if so allows the operation.
-        else if (RoleConstants.ORG_ADMIN.equals(roleName)) {
+        else if (this.securityUtil.isOrgAdmin()) {
 
-            users = this.userRepository.findByOrganizationAndDeletedFalse(
-                    currentUser.getOrganization());
+            users = this.userRepository.findByOrganizationAndActiveTrueAndIdNot(
+                    this.securityUtil.getCurrentOrganization(),
+                    this.securityUtil.getCurrentUserId(), pageable);
         }
         //deny the operation for users.
         else {
@@ -71,7 +93,7 @@ public class UserService {
 
         final List<UserResponseDto> response = new ArrayList<>();
 
-        for(final User user : users){
+        for(final User user : users.getContent()){
 
             String organizationName = null;
 
@@ -84,9 +106,11 @@ public class UserService {
                     UserResponseDto.builder()
                             .id(user.getId())
                             .email(user.getEmail())
+                            .firstName(user.getFirstName())
+                            .lastName(user.getLastName())
                             .roleName(user.getRole().getName())
                             .mfaEnabled(user.getMfaEnabled())
-                            .deleted(user.getDeleted())
+                            .active(user.getActive())
                             .organizationName(organizationName)
                             .createdAt(user.getCreatedAt())
                             .build()
@@ -94,50 +118,59 @@ public class UserService {
         }
 
         this.auditService.log(
-                currentUser,
-                "VIEW_USERS",
-                "USER",
-                null,
-                "Viewed users list");
+                AuditRequestDto.builder()
+                        .user(currentUser)
+                        .action("VIEW_USERS")
+                        .entityAffected("USER")
+                        .description("viewed users list")
+                        .build()
+        );
 
-        return response;
+        return new PageImpl<>(response,pageable,
+                users.getTotalElements());
     }
 
     //Performs a GET operation and fetches the user based on the given id.
     public UserResponseDto fetchUserById(final String id){
 
+        this.permissionService.requirePermission(PermissionType.VIEW_USERS);
+
         final User currentUser = this.securityUtil.getCurrentUser();
 
-        final User targetUser = this.userRepository.findByIdAndDeletedFalse(id)
+        if (this.securityUtil.isCurrentUser(id)){
+
+            throw  new BadRequestException(
+                    "You can't view own data using this endpoint");
+        }
+
+        final User targetUser = this.userRepository.findByIdAndActiveTrue(id)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                         "User not found."));
 
-        final String roleName = currentUser.getRole().getName();
-
-        //checks if the current user is org admin.
-        if (RoleConstants.ORG_ADMIN.equals(roleName)) {
-
-            /*checks the role of target user is null and compares it with
-            the role of current user (both roles should match) (false and true,
-             true and false or true and true gives exception).
-             */
-            if (targetUser.getOrganization() == null
-                    || !targetUser.getOrganization().getId()
-                    .equals(currentUser.getOrganization().getId())) {
-
-                throw new UnauthorizedException(
-                        "You cannot access users from another organization.");
-            }
-        }
-
         //if role is org admin then they can only view users.
-        if (RoleConstants.ORG_ADMIN.equals(roleName)
+        if (this.securityUtil.isOrgAdmin()
                 && !RoleConstants.USER.equals(targetUser.getRole().getName())) {
 
             throw new UnauthorizedException
                     ("Organization admins can only view users.");
         }
 
+        //checks if the current user is org admin.
+        if (this.securityUtil.isOrgAdmin()) {
+
+            /*checks the role of target user is null and compares it with
+            the role of current user (both roles should match) (false and true,
+             true and false or true and true gives exception).
+             */
+            if (targetUser.getOrganization() == null
+                    || !this.securityUtil.isSameOrganization(
+                            targetUser.getOrganization().getId())) {
+
+                throw new UnauthorizedException(
+                        "You cannot access users from another organization.");
+            }
+        }
+
         String organizationName = null;
 
         if (targetUser.getOrganization() != null) {
@@ -146,318 +179,104 @@ public class UserService {
         }
 
         this.auditService.log(
-                currentUser,
-                "VIEW_USER",
-                "USER",
-                targetUser.getId(),
-                "Viewed user " + targetUser.getEmail()
+                AuditRequestDto.builder()
+                        .user(currentUser)
+                        .action("VIEW_USER")
+                        .entityAffected("USER")
+                        .entityId(targetUser.getId())
+                        .description("viewed user " + targetUser.getEmail() + ".")
+                        .build()
         );
 
         return UserResponseDto.builder()
                 .id(targetUser.getId())
                 .email(targetUser.getEmail())
+                .firstName(targetUser.getFirstName())
+                .lastName(targetUser.getLastName())
                 .roleName(targetUser.getRole().getName())
                 .organizationName(organizationName)
                 .mfaEnabled(targetUser.getMfaEnabled())
-                .deleted(targetUser.getDeleted())
+                .active(targetUser.getActive())
                 .createdAt(targetUser.getCreatedAt())
                 .build();
     }
 
     //Performs a POST operation and creates a user in DB.
+    @Transactional
     public UserResponseDto createUser(final CreateUserRequestDto request){
+
+        this.permissionService.requirePermission(PermissionType
+                .CREATE_USER);
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
-        //checks if the user already exists with email.
-        if(this.userRepository.existsByEmail(request.getEmail())){
-            throw new BadRequestException("Email already exists");
-        }
-
-        final String currentRole = currentUser.getRole().getName();
-
-        final String requestedRole = request.getRoleName();
-
-        final Role role;
-
-        final Organization organization;
-
-        //checks if current user is super admin.
-        if(RoleConstants.SUPER_ADMIN.equals(currentRole)){
-
-            //can only create user and org admin.
-            if(!RoleConstants.USER.equals(requestedRole)
-            && !RoleConstants.ORG_ADMIN.equals(requestedRole)){
-
-                throw new BadRequestException("Invalid role.");
-            }
-
-            //only can create an org admin with an organization id.
-            if (RoleConstants.ORG_ADMIN.equals(requestedRole)
-                    && request.getOrganizationId() == null) {
-
-                throw new BadRequestException(
-                        "Organization admin must belong to an organization.");
-            }
-
-            role = this.roleRepository.findByName(requestedRole)
-                    .orElseThrow(()->new ResourceNotFoundException(
-                            "Role not found"));
-
-            //if request has org id sets it to a variable.
-            if (request.getOrganizationId() != null){
-
-                organization = this.organizationRepository
-                        .findByIdAndDeletedFalse(request.getOrganizationId())
-                        .orElseThrow(()->new ResourceNotFoundException(
-                                "Organization not found"));
-            }
-            else {
-                organization = null;
-            }
-        }
-        //checks if current user is org admin
-        else if (RoleConstants.ORG_ADMIN.equals(currentRole)) {
-
-            //if current user is org admin then can only create users in own org.
-            //and the role is always user.
-            role = this.roleRepository.findByName(RoleConstants.USER)
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Role not found"));
-
-            organization = currentUser.getOrganization();
-        }
-        else {
+        if (!this.securityUtil.isOrgAdmin()){
 
             throw new UnauthorizedException(
-                    "You do not have permission to create users.");
+                    "Only organization admins can create users.");
         }
+
+        //checks if the user already exists with email.
+        if (this.userRepository.existsByEmail(request.getEmail())){
+            throw new BadRequestException("Email already exists.");
+        }
+
+        final Role role = this.roleRepository.findByName(
+                RoleConstants.USER).orElseThrow(
+                ()-> new ResourceNotFoundException("Role not found."));
+
+        final Organization organization = this.securityUtil.getCurrentOrganization();
+
+        final String temporaryPassword =
+                this.passwordGeneratorService.generatePassword(12);
+
+        final String activationToken =
+                this.tokenGeneratorService.generateToken();
 
         final User user = User.builder()
                 .email(request.getEmail())
-                .password(this.passwordEncoder.encode(
-                        request.getPassword()))
+                .password(this.passwordEncoder.encode(temporaryPassword))
                 .firstName(request.getFirstName())
-                .secondName(request.getSecondName())
+                .lastName(request.getLastName())
                 .role(role)
                 .organization(organization)
-                .deleted(false)
+                .active(false)
                 .mfaEnabled(false)
+                .activationToken(activationToken)
+                .activationTokenExpiresAt(
+                        Instant.now().plus(24, ChronoUnit.HOURS))
                 .build();
 
-        this.userRepository.save(user);
+        final User savedUser = this.userRepository.save(user);
 
-        String organizationName = null;
+        final String activationLink =
+                this.baseUrl
+                + "/auth/activate-account?token="
+                + activationToken;
 
-        if (organization != null){
-
-            organizationName = organization.getName();
-
-        }
+        this.emailService.sendActivationMail(
+                savedUser.getEmail(), activationLink);
 
         this.auditService.log(
-                currentUser,
-                "CREATE_USER",
-                "USER",
-                user.getId(),
-                "Created user " + user.getEmail());
+                AuditRequestDto.builder()
+                        .user(currentUser)
+                        .action("CREATE_USER")
+                        .entityAffected("USER")
+                        .entityId(savedUser.getId())
+                        .description("Created user: " + savedUser.getEmail())
+                        .build());
 
         return UserResponseDto.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .roleName(role.getName())
-                .organizationName(organizationName)
-                .mfaEnabled(user.getMfaEnabled())
-                .deleted(user.getDeleted())
-                .createdAt(user.getCreatedAt())
+                .id(savedUser.getId())
+                .email(savedUser.getEmail())
+                .firstName(savedUser.getFirstName())
+                .lastName(savedUser.getLastName())
+                .roleName(savedUser.getRole().getName())
+                .organizationName(savedUser.getOrganization().getName())
+                .mfaEnabled(savedUser.getMfaEnabled())
+                .active(savedUser.getActive())
+                .createdAt(savedUser.getCreatedAt())
                 .build();
-    }
-
-    //performs a PUT operation and updates user with the help of id.
-    //both super admin and org admin can access.
-    public UserResponseDto updateUser(final String id,
-            final UpdateUserRequestDto request) {
-
-        final User currentUser = this.securityUtil.getCurrentUser();
-
-        final User targetUser = this.userRepository.findByIdAndDeletedFalse(id)
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                        "User not found."));
-
-        final String currentRole = currentUser.getRole().getName();
-
-        //check is current role is org admin.
-        if (RoleConstants.ORG_ADMIN.equals(currentRole)) {
-
-            /*checks both organization of current and target user are same
-            if target organization is not null.
-             */
-            if (targetUser.getOrganization() == null
-                    || !targetUser.getOrganization()
-                    .getId()
-                    .equals(currentUser.getOrganization().getId())) {
-
-                throw new UnauthorizedException(
-                        "You cannot update users from another organization."
-                );
-            }
-        }
-
-        //prevents org admins from updating other org admins.
-        if (RoleConstants.ORG_ADMIN.equals(currentRole)
-                && !RoleConstants.USER.equals(targetUser.getRole().getName())) {
-
-            throw new UnauthorizedException
-                    ("Organization admins can only update users.");
-        }
-
-        if (request.getEmail() != null) {
-
-            //checks if the email we are updating already exists if so throws error.
-            if (!targetUser.getEmail().equals(request.getEmail())
-                    && this.userRepository.existsByEmail(
-                    request.getEmail())) {
-
-                throw new BadRequestException(
-                        "Email already exists."
-                );
-            }
-
-            targetUser.setEmail(request.getEmail());
-        }
-
-        if (request.getFirstName() != null) {
-            targetUser.setFirstName(request.getFirstName());
-        }
-
-        if (request.getSecondName() != null) {
-            targetUser.setSecondName(request.getSecondName());
-        }
-
-        //checks current user is super admin
-        if (RoleConstants.SUPER_ADMIN.equals(currentRole)
-                && request.getRoleName() != null) {
-
-            //can only update users and org_admin.
-            if (!RoleConstants.USER.equals(request.getRoleName())
-                    && !RoleConstants.ORG_ADMIN.equals(request.getRoleName())) {
-
-                throw new BadRequestException("Invalid role.");
-            }
-
-            //makes sure if updating org admin organization is present
-            if (RoleConstants.ORG_ADMIN.equals(request.getRoleName())
-                    && request.getOrganizationId() == null
-                    && targetUser.getOrganization() == null) {
-
-                throw new BadRequestException(
-                        "Organization admin must belong to an organization."
-                );
-            }
-
-            final Role role = this.roleRepository.findByName(
-                                    request.getRoleName())
-                            .orElseThrow(() ->
-                                    new ResourceNotFoundException(
-                                            "Role not found."));
-
-            targetUser.setRole(role);
-        }
-
-        //checks if super admin and organization in request is not null.
-        if (RoleConstants.SUPER_ADMIN.equals(currentRole)
-                && request.getOrganizationId() != null) {
-
-            final Organization organization = this.organizationRepository
-                            .findByIdAndDeletedFalse(request.getOrganizationId())
-                            .orElseThrow(() ->
-                                    new ResourceNotFoundException(
-                                            "Organization not found."));
-
-            targetUser.setOrganization(organization);
-        }
-
-        this.userRepository.save(targetUser);
-
-        String organizationName = null;
-
-        if (targetUser.getOrganization() != null) {
-
-            organizationName = targetUser.getOrganization().getName();
-        }
-
-        this.auditService.log(
-                currentUser,
-                "UPDATE_USER",
-                "USER",
-                targetUser.getId(),
-                "Updated user " + targetUser.getEmail());
-
-        return UserResponseDto.builder()
-                .id(targetUser.getId())
-                .email(targetUser.getEmail())
-                .firstName(targetUser.getFirstName())
-                .secondName(targetUser.getSecondName())
-                .roleName(targetUser.getRole().getName())
-                .organizationName(organizationName)
-                .mfaEnabled(targetUser.getMfaEnabled())
-                .deleted(targetUser.getDeleted())
-                .createdAt(targetUser.getCreatedAt())
-                .build();
-    }
-
-
-    //performs a DELETE operation and soft deletes (sets deleted to true in user table).
-    public void deleteUser(final String id) {
-
-        final User currentUser = this.securityUtil.getCurrentUser();
-
-        final User targetUser = this.userRepository.findById(id)
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                        "User not found."));
-
-        final String currentRole = currentUser.getRole().getName();
-
-        //checks if logged-in user is org admin.
-        if (RoleConstants.ORG_ADMIN.equals(currentRole)) {
-
-            /*if org admin then checks that org of target is not null
-            and belongs to the same org as org admin(current user)
-             */
-            if (targetUser.getOrganization() == null
-                    || !targetUser.getOrganization().getId().equals(
-                            currentUser.getOrganization().getId())) {
-
-                throw new UnauthorizedException(
-                        "You cannot delete users from another organization.");
-            }
-        }
-
-        //prevents org admin from deleting any other roles other than users.
-        if (RoleConstants.ORG_ADMIN.equals(currentRole)
-                && !RoleConstants.USER.equals(targetUser.getRole().getName())) {
-
-            throw new UnauthorizedException(
-                    "Organization admins can only delete users.");
-        }
-
-        if (Boolean.TRUE.equals(targetUser.getDeleted())) {
-
-            throw new BadRequestException(
-                    "User is already deleted.");
-        }
-
-        //if not already deleted sets the target deleted to true (soft delete).
-        targetUser.setDeleted(true);
-
-        this.userRepository.save(targetUser);
-
-        this.auditService.log(
-                currentUser,
-                "DELETE_USER",
-                "USER",
-                targetUser.getId(),
-                "Soft deleted user " + targetUser.getEmail());
     }
 
     //performs a PUT operation and bulk uploads users to DB.
@@ -797,134 +616,5 @@ public class UserService {
 
             throw new BadRequestException("Invalid Excel file.");
         }
-    }
-
-    //performs a DELETE operation that deletes all users in an org.
-    //can only be done by super admin.
-    public void deleteUsersByOrganization(final String organizationId) {
-
-        final User currentUser = this.securityUtil.getCurrentUser();
-
-        //checks if user is super admin
-        if (!RoleConstants.SUPER_ADMIN.equals(currentUser.getRole().getName())){
-
-            throw new UnauthorizedException("Only super admin can delete users by organization");
-        }
-
-        final Organization organization = this.organizationRepository
-                        .findByIdAndDeletedFalse(organizationId)
-                        .orElseThrow(() -> new ResourceNotFoundException
-                                ("Organization not found."));
-
-        final List<User> users = this.userRepository
-                        .findByOrganizationAndDeletedFalse(organization);
-
-        //loops through org users of given org id and sets deleted and org as true and null.
-        for (User user : users) {
-
-            user.setDeleted(true);
-        }
-
-        this.userRepository.saveAll(users);
-
-        this.auditService.log(
-                currentUser,
-                "SOFT_DELETE_USERS_BY_ORGANIZATION",
-                "ORGANIZATION",
-                organizationId,
-                "Soft deleted "
-                        + users.size() + " users from organization "
-                        + organization.getName());
-    }
-
-
-    //performs a PUT operation and restores all soft deleted users.
-    //org id is needed for restoring a deleted user to a new org.
-    //can br done by super and org admin.
-    public UserResponseDto restoreUser(final String id,
-                                       final RestoreUserRequestDto request) {
-
-        final  User currentUser = this.securityUtil.getCurrentUser();
-
-        final String currentRole = currentUser.getRole().getName();
-
-        final User targetUser = this.userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        if (targetUser.getOrganization() != null && Boolean.TRUE.equals(
-                targetUser.getOrganization().getDeleted())) {
-
-            throw new BadRequestException("Restore the organization first.");
-        }
-
-        if(!targetUser.getDeleted()){
-
-            throw new BadRequestException("User already active.");
-        }
-
-        //check for org admin.
-        if (RoleConstants.ORG_ADMIN.equals(currentRole)){
-
-            //checks if org admin only restores users of their org.
-            if (!RoleConstants.USER.equals(targetUser.getRole().getName())){
-
-                throw new UnauthorizedException("Organization Admins can only restore users.");
-            }
-
-            if(!targetUser.getOrganization().getId()
-                    .equals(currentUser.getOrganization().getId())){
-
-                throw new UnauthorizedException
-                        ("you can only restore users in your own organization");
-            }
-        }
-
-        if (request.getOrganizationId() != null){
-
-            //checks if org id is given and role is org admin then org admin can only restore users to their org.
-            if (RoleConstants.ORG_ADMIN.equals(currentRole)
-                    && !request.getOrganizationId()
-                    .equals(currentUser.getOrganization().getId())) {
-
-                throw new UnauthorizedException
-                        ("Organization admins can only assign users to their own organization.");
-            }
-
-            final Organization organization = this.organizationRepository
-                    .findByIdAndDeletedFalse(request.getOrganizationId())
-                    .orElseThrow(()-> new ResourceNotFoundException
-                            ("Organization not found"));
-
-            targetUser.setOrganization(organization);
-        }
-
-        targetUser.setDeleted(false);
-
-        this.userRepository.save(targetUser);
-
-        this.auditService.log(
-                currentUser,
-                "RESTORE_USER",
-                "USER",
-                targetUser.getId(),
-                "Restored user: " + targetUser.getEmail());
-
-        String organizationName = null;
-
-        if (targetUser.getOrganization() != null){
-
-            organizationName = targetUser.getOrganization().getName();
-        }
-
-        return UserResponseDto.builder()
-                .id(targetUser.getId())
-                .email(targetUser.getEmail())
-                .firstName(targetUser.getFirstName())
-                .secondName(targetUser.getSecondName())
-                .roleName(targetUser.getRole().getName())
-                .organizationName(organizationName)
-                .deleted(targetUser.getDeleted())
-                .mfaEnabled(targetUser.getMfaEnabled())
-                .build();
     }
 }

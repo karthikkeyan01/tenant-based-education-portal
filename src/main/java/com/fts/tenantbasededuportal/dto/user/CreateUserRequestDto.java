@@ -1,5 +1,7 @@
 package com.fts.tenantbasededuportal.dto.user;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Getter
@@ -9,15 +11,11 @@ import lombok.*;
 @Builder
 public class CreateUserRequestDto {
 
+    @NotBlank
+    @Email
     private String email;
-
-    private String password;
 
     private String firstName;
 
-    private String secondName;
-
-    private String roleName;
-
-    private String organizationId;
+    private String lastName;
 }

@@ -7,7 +7,7 @@ import java.security.SecureRandom;
 @Service
 public class PasswordGeneratorService {
 
-    public static final String CHARACTERS =
+    private static final String CHARACTERS =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "abcdefghijklmnopqrstuvwxyz" +
                     "0123456789" + "!@#$%^&*";
 

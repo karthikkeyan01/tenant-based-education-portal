@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.exception;
 
+import com.fts.tenantbasededuportal.dto.ApiResponseDto;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -58,7 +59,7 @@ public class GlobalExceptionHandler {
                 ErrorResponse.builder()
                         .timestamp(Instant.now())
                         .status(HttpStatus.BAD_REQUEST.value())
-                        .error(HttpStatus.BAD_REQUEST.name())
+                        .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
                         .message(exception.getMessage())
                         .path(request.getRequestURI())
                         .build();
@@ -77,7 +78,7 @@ public class GlobalExceptionHandler {
                 ErrorResponse.builder()
                         .timestamp(Instant.now())
                         .status(HttpStatus.UNAUTHORIZED.value())
-                        .error(HttpStatus.UNAUTHORIZED.name())
+                        .error(HttpStatus.UNAUTHORIZED.getReasonPhrase())
                         .message(exception.getMessage())
                         .path(request.getRequestURI())
                         .build();
@@ -96,7 +97,26 @@ public class GlobalExceptionHandler {
                 ErrorResponse.builder()
                         .timestamp(Instant.now())
                         .status(HttpStatus.FORBIDDEN.value())
-                        .error(HttpStatus.FORBIDDEN.name())
+                        .error(HttpStatus.FORBIDDEN.getReasonPhrase())
+                        .message(exception.getMessage())
+                        .path(request.getRequestURI())
+                        .build();
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(response);
+    }
+
+    @ExceptionHandler(AccountInactiveException.class)
+    public ResponseEntity<ErrorResponse> handleAccountInactiveException(
+            final AccountInactiveException exception,
+            final HttpServletRequest request) {
+
+        final ErrorResponse response =
+                ErrorResponse.builder()
+                        .timestamp(Instant.now())
+                        .status(HttpStatus.FORBIDDEN.value())
+                        .error(HttpStatus.FORBIDDEN.getReasonPhrase())
                         .message(exception.getMessage())
                         .path(request.getRequestURI())
                         .build();

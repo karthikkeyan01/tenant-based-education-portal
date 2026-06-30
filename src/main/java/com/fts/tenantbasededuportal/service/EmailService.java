@@ -23,7 +23,7 @@ public class EmailService {
 
             final SimpleMailMessage message = new SimpleMailMessage();
 
-            message.setFrom(fromEmail);
+            message.setFrom(this.fromEmail);
 
             message.setTo(toEmail);
 
@@ -37,6 +37,57 @@ public class EmailService {
         catch (Exception e){
 
             throw new BadRequestException("Failed to send verification email.");
+        }
+    }
+
+    public void sendActivationMail(final String toEmail,
+                                   final String activationLink){
+
+        try{
+            final SimpleMailMessage message = new SimpleMailMessage();
+
+            message.setFrom(this.fromEmail);
+
+            message.setTo(toEmail);
+
+            message.setSubject("Activate your Account");
+
+            message.setText("Welcome!!\n\n"
+            + "Please activate your account using the link below:\n\n"
+            + activationLink
+            +"\n\nThis link expires in 24 hours");
+
+            this.mailSender.send(message);
+        }
+        catch (final Exception exception){
+
+            throw new BadRequestException("Failed to send activation email.");
+        }
+    }
+
+    public void sendForgotPasswordMail
+            (final String toEmail, final String resetLink){
+
+        try{
+
+            final SimpleMailMessage message = new SimpleMailMessage();
+
+            message.setFrom(this.fromEmail);
+
+            message.setTo(toEmail);
+
+            message.setSubject("Reset Your Password");
+
+            message.setText("You requested to reset your password.\n\n"
+            + "Use the link below:\n\n"
+            + resetLink
+            + "\n\nThis link expires in 15 minutes");
+
+            this.mailSender.send(message);
+        }
+        catch (final Exception exception){
+
+            throw new BadRequestException("Failed to send forgot password email.");
         }
     }
 }

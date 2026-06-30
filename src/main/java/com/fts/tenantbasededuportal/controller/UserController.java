@@ -1,8 +1,12 @@
 package com.fts.tenantbasededuportal.controller;
 
+import com.fts.tenantbasededuportal.dto.ApiResponseDto;
 import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -17,11 +21,20 @@ public class UserController {
 
     private final UserService userService;
 
-    @PreAuthorize("hasAuthority('VIEW_USERS')")
     @GetMapping
-    public List<UserResponseDto> fetchUsers(){
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ORG_ADMIN')")
+    public ResponseEntity<ApiResponseDto<Page<UserResponseDto>>> fetchUsers(
+            final Pageable pageable) {
 
-        return userService.fetchUsers();
+        final Page<UserResponseDto> users =
+                this.userService.fetchUsers(pageable);
+
+        return ResponseEntity.ok(
+                ApiResponseDto.<Page<UserResponseDto>>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Users fetched successfully.")
+                        .data(users)
+                        .build());
     }
 
     @PreAuthorize("hasAuthority('VIEW_USERS')")

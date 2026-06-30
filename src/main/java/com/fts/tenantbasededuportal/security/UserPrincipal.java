@@ -1,13 +1,11 @@
 package com.fts.tenantbasededuportal.security;
 
-import com.fts.tenantbasededuportal.entity.Role;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -15,51 +13,36 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserPrincipal implements UserDetails {
 
-    private String id;
-    private String email;
-    private String firstName;
-    private String secondName;
-    private Role roles;
-
+    @NotNull
+    private final String id;
+    @NotNull
+    private final String email;
+    @NotNull
+    private final String password;
+    private final String organizationId;
+    @NotNull
+    private final String role;
+    private final boolean active;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
 
-        final List<GrantedAuthority> authorities = new ArrayList<>();
-
-            authorities.add(new SimpleGrantedAuthority(
-                    this.roles.getName()));
-        return authorities;
+        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role));
     }
 
     @Override
     public String getPassword() {
-        return this.user.getPassword();
+        return this.password;
     }
 
     @Override
     public String getUsername() {
-        return this.user.getEmail();
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
+        return this.email;
     }
 
     @Override
     public boolean isEnabled() {
-        return !this.user.getDeleted();
+        return this.active;
     }
 
 }
