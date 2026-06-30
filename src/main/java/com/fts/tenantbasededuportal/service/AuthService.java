@@ -276,11 +276,8 @@ public class AuthService {
         }
 
         user.setPassword(this.passwordEncoder.encode(password));
-
         user.setActive(true);
-
         user.setActivationToken(null);
-
         user.setActivationTokenExpiresAt(null);
 
         this.userRepository.save(user);
@@ -346,9 +343,7 @@ public class AuthService {
         }
 
         user.setPassword(this.passwordEncoder.encode(password));
-
         user.setResetPasswordToken(null);
-
         user.setResetPasswordTokenExpiresAt(null);
 
         this.userRepository.save(user);
