@@ -51,25 +51,6 @@ public class UserController {
         return this.userService.createUser(request);
     }
 
-    @PreAuthorize("hasAuthority('UPDATE_USER')")
-    @PutMapping("/{id}")
-    public UserResponseDto updateUser(
-            @PathVariable final String id,
-            @RequestBody final UpdateUserRequestDto request
-    ) {
-
-        return this.userService.updateUser(id, request);
-    }
-
-    @PreAuthorize("hasAuthority('DELETE_USER')")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable final String id) {
-
-        this.userService.deleteUser(id);
-
-        return ResponseEntity.noContent().build();
-    }
-
     @PreAuthorize("hasAuthority('CREATE_USER')")
     @PostMapping("/bulk-upload")
     public BulkUploadResponseDto bulkUploadFile
@@ -77,23 +58,5 @@ public class UserController {
              @RequestParam(required = false) final String organizationId) {
 
         return this.userService.bulkUploadUsers(file, organizationId);
-    }
-
-    @PreAuthorize("hasAuthority('MANAGE_USER')")
-    @PutMapping("/{id}/restore")
-    public UserResponseDto restoreUser(@PathVariable final String id,
-                                       @RequestBody final RestoreUserRequestDto request){
-
-        return this.userService.restoreUser(id, request);
-    }
-
-    @PreAuthorize("hasAuthority('DELETE_USER')")
-    @DeleteMapping("/organization/{organizationId}")
-    public ResponseEntity<Void> deleteUsersByOrganization(
-            @PathVariable final String organizationId) {
-
-        this.userService.deleteUsersByOrganization(organizationId);
-
-        return ResponseEntity.noContent().build();
     }
 }
