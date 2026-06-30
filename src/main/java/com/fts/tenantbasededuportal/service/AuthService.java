@@ -78,9 +78,8 @@ public class AuthService {
 
         this.userRepository.save(user);
 
-        this.auditService.log(
+        this.auditService.create(
                 AuditRequestDto.builder()
-                        .user(user)
                         .action("REGISTER")
                         .entityAffected("AUTH")
                         .entityId(user.getId())
@@ -116,9 +115,8 @@ public class AuthService {
 
             this.emailService.sendOtpMail(user.getEmail(), otp);
 
-            this.auditService.log(
+            this.auditService.create(
                     AuditRequestDto.builder()
-                            .user(user)
                             .action("LOGIN")
                             .entityAffected("AUTH")
                             .entityId(user.getId())
@@ -139,8 +137,7 @@ public class AuthService {
 
         this.userRepository.save(user);
 
-        this.auditService.log(AuditRequestDto.builder()
-                        .user(user)
+        this.auditService.create(AuditRequestDto.builder()
                         .action("LOGIN")
                         .entityAffected("AUTH")
                         .entityId(user.getId())
@@ -152,7 +149,7 @@ public class AuthService {
                 .email(userPrincipal.getUsername())
                 .role(userPrincipal.getRole())
                 .mfaRequired(false)
-                .message("Login Successful.")
+                .message("Login successful.")
                 .build();
     }
 
@@ -161,7 +158,7 @@ public class AuthService {
         final User user = this.userRepository
                 .findByEmailAndActiveTrue(email)
                 .orElseThrow(() -> new UnauthorizedException(
-                        "invalid email or OTP."));
+                        "Invalid email or OTP."));
 
         if (!Boolean.TRUE.equals(user.getMfaEnabled())) {
 
@@ -206,9 +203,8 @@ public class AuthService {
 
         final String token = this.jwtService.generateToken(principal);
 
-        this.auditService.log(
+        this.auditService.create(
                 AuditRequestDto.builder()
-                        .user(user)
                         .action("LOGIN")
                         .entityAffected("AUTH")
                         .entityId(user.getId())
@@ -245,9 +241,8 @@ public class AuthService {
 
         this.emailService.sendOtpMail(user.getEmail(), otp);
 
-        this.auditService.log(
+        this.auditService.create(
                 AuditRequestDto.builder()
-                        .user(user)
                         .action("RESEND_OTP")
                         .entityAffected("AUTH")
                         .entityId(user.getId())
@@ -282,9 +277,8 @@ public class AuthService {
 
         this.userRepository.save(user);
 
-        this.auditService.log(
+        this.auditService.create(
                 AuditRequestDto.builder()
-                        .user(user)
                         .action("ACTIVATE_ACCOUNT")
                         .entityAffected("AUTH")
                         .entityId(user.getId())
@@ -317,14 +311,12 @@ public class AuthService {
         this.emailService.sendForgotPasswordMail(
                 user.getEmail(), resetLink);
 
-        this.auditService.log(
+        this.auditService.create(
                 AuditRequestDto.builder()
-                        .user(user)
                         .action("FORGOT_PASSWORD")
                         .entityAffected("AUTH")
                         .entityId(user.getId())
-                        .description(
-                                "Password reset link sent.")
+                        .description("Password reset link sent.")
                         .build());
     }
 
@@ -348,9 +340,8 @@ public class AuthService {
 
         this.userRepository.save(user);
 
-        this.auditService.log(
+        this.auditService.create(
                 AuditRequestDto.builder()
-                        .user(user)
                         .action("RESET_PASSWORD")
                         .entityAffected("AUTH")
                         .entityId(user.getId())
@@ -360,13 +351,10 @@ public class AuthService {
 
     public void logout() {
 
-        final User currentUser = this.securityUtil.getCurrentUser();
-
-        this.auditService.log(AuditRequestDto.builder()
-                        .user(currentUser)
+        this.auditService.create(AuditRequestDto.builder()
                         .action("LOGOUT")
                         .entityAffected("AUTH")
-                        .entityId(currentUser.getId())
+                        .entityId(this.securityUtil.getCurrentUserId())
                         .description("User logged out.")
                         .build());
     }

@@ -1,36 +1,52 @@
 package com.fts.tenantbasededuportal.controller;
 
-import com.fts.tenantbasededuportal.entity.AuditLog;
+import com.fts.tenantbasededuportal.dto.ApiResponseDto;
+import com.fts.tenantbasededuportal.dto.audit.AuditResponseDto;
 import com.fts.tenantbasededuportal.service.AuditService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/audit-logs")
+@RequestMapping("/audit")
 @RequiredArgsConstructor
 public class AuditController {
 
     private final AuditService auditService;
 
-    @PreAuthorize("hasAuthority('MANAGE_SYSTEM')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping
-    public Page<AuditLog> getAuditLogs(
+    public ResponseEntity<ApiResponseDto<Page<AuditResponseDto>>> retrieveAuditLogs(
             @RequestParam(defaultValue = "0") final int page,
             @RequestParam(defaultValue = "10") final int size){
 
-        return this.auditService.getAuditLogs(page, size);
+        final Page<AuditResponseDto> response =
+                this.auditService.retrieveAuditLogs(page, size);
 
+        return ResponseEntity.ok(
+                new ApiResponseDto<>(
+                        HttpStatus.OK.value(),
+                        "Audit logs retrieved successfully",
+                        response));
     }
 
-    @PreAuthorize("hasAuthority('MANAGE_SYSTEM')")
-    @GetMapping("/user/{userId}")
-    public Page<AuditLog> getAuditLogsByUser(
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @GetMapping("/users/{userId}")
+    public ResponseEntity<ApiResponseDto<Page<AuditResponseDto>>> retrieveAuditLogsByUser(
             @PathVariable final String userId,
             @RequestParam(defaultValue = "0") final int page,
             @RequestParam(defaultValue = "10") final int size){
 
-        return this.auditService.getAuditLogsByUser(userId, page, size);
+        final Page<AuditResponseDto> response =
+                this.auditService.retrieveAuditLogsByUser(userId, page, size);
+
+        return ResponseEntity.ok(
+                new ApiResponseDto<>(
+                        HttpStatus.OK.value(),
+                        "User audit logs retrieved successfully",
+                        response));
     }
 }

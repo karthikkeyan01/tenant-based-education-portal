@@ -8,8 +8,6 @@ import lombok.Getter;
 @Builder
 public class AuditRequestDto {
 
-    private User user;
-
     private String action;
 
     private String entityAffected;

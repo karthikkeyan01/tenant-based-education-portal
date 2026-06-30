@@ -16,7 +16,6 @@ public class AuditLog extends BaseEntity {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
     private User user;
 
     @Column(nullable = false)
@@ -29,10 +28,13 @@ public class AuditLog extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String details;
 
+    @Column(nullable = false, length = 1000)
+    private String userAgent;
+
     private String ipAddress;
 
     private String requestUrl;
 
-    private String httpMethod;
+    private String method;
 
 }

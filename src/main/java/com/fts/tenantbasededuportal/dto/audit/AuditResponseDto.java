@@ -16,6 +16,8 @@ public class AuditResponseDto {
 
     private String userEmail;
 
+    private String userAgent;
+
     private String action;
 
     private String entityAffected;
@@ -28,7 +30,7 @@ public class AuditResponseDto {
 
     private String requestUrl;
 
-    private String httpMethod;
+    private String method;
 
     private Instant createdAt;
 }

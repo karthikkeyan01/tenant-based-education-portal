@@ -64,11 +64,9 @@ public class UserService {
     private String baseUrl;
 
     //Performs a GET operation and fetches all users from the DB.
-    public Page<UserResponseDto> fetchUsers(final Pageable pageable) {
+    public Page<UserResponseDto> retrieveUsers(final Pageable pageable) {
 
         this.permissionService.requirePermission(PermissionType.VIEW_USERS);
-
-        final User currentUser = this.securityUtil.getCurrentUser();
 
         final Page<User> users;
 
@@ -117,25 +115,14 @@ public class UserService {
             );
         }
 
-        this.auditService.log(
-                AuditRequestDto.builder()
-                        .user(currentUser)
-                        .action("VIEW_USERS")
-                        .entityAffected("USER")
-                        .description("viewed users list")
-                        .build()
-        );
-
         return new PageImpl<>(response,pageable,
                 users.getTotalElements());
     }
 
     //Performs a GET operation and fetches the user based on the given id.
-    public UserResponseDto fetchUserById(final String id){
+    public UserResponseDto retrieveUserById(final String id){
 
         this.permissionService.requirePermission(PermissionType.VIEW_USERS);
-
-        final User currentUser = this.securityUtil.getCurrentUser();
 
         if (this.securityUtil.isCurrentUser(id)){
 
@@ -177,16 +164,6 @@ public class UserService {
 
             organizationName = targetUser.getOrganization().getName();
         }
-
-        this.auditService.log(
-                AuditRequestDto.builder()
-                        .user(currentUser)
-                        .action("VIEW_USER")
-                        .entityAffected("USER")
-                        .entityId(targetUser.getId())
-                        .description("viewed user " + targetUser.getEmail() + ".")
-                        .build()
-        );
 
         return UserResponseDto.builder()
                 .id(targetUser.getId())
@@ -257,9 +234,8 @@ public class UserService {
         this.emailService.sendActivationMail(
                 savedUser.getEmail(), activationLink);
 
-        this.auditService.log(
+        this.auditService.create(
                 AuditRequestDto.builder()
-                        .user(currentUser)
                         .action("CREATE_USER")
                         .entityAffected("USER")
                         .entityId(savedUser.getId())
@@ -278,6 +254,81 @@ public class UserService {
                 .createdAt(savedUser.getCreatedAt())
                 .build();
     }
+
+    @Transactional
+    public void activate(final String userId, final boolean active){
+
+        if (!this.securityUtil.isOrgAdmin()){
+
+            throw new UnauthorizedException(
+                    "Only organization admins can activate users.");
+        }
+
+        this.permissionService.requirePermission(PermissionType.MANAGE_USER);
+
+        if(this.securityUtil.isCurrentUser(userId)){
+
+            throw new BadRequestException(
+                    "You cannot activate or deactivate your own account.");
+        }
+
+        final User targetUser =  this.userRepository.findById(userId)
+                .orElseThrow(()->
+                        new ResourceNotFoundException("User not found."));
+
+        if (targetUser.getOrganization() == null
+                || !this.securityUtil.isSameOrganization(
+                targetUser.getOrganization().getId())) {
+
+            throw new UnauthorizedException(
+                    "You can only manage users in your own organization.");
+        }
+
+        if (!RoleConstants.USER.equals(targetUser.getRole().getName())) {
+
+            throw new UnauthorizedException(
+                    "Only users can be activated or deactivated.");
+        }
+
+        if (targetUser.getActive().equals(active)) {
+
+            throw new BadRequestException(
+                    active
+                            ? "User is already active."
+                            : "User is already inactive.");
+        }
+
+        targetUser.setActive(active);
+
+        this.userRepository.save(targetUser);
+
+        this.auditService.create(
+                AuditRequestDto.builder()
+                        .action(active
+                                ? "ACTIVATE_USER"
+                                : "DEACTIVATE_USER")
+                        .entityAffected("USER")
+                        .entityId(targetUser.getId())
+                        .description(active
+                                ? "Activated user: " + targetUser.getEmail()
+                                : "Deactivated user: " + targetUser.getEmail())
+                        .build());
+    }
+
+
+//    public void activate(final String id, final boolean active,
+//                         final boolean isUser){
+//
+//        if (!this.securityUtil.isSuperAdmin()){
+//
+//            throw new UnauthorizedException(
+//                    "Only super admins can perform this operation.");
+//        }
+//
+//        this.permissionService.requirePermission(PermissionType.MANAGE_USER);
+//
+//        final
+//    }
 
     //performs a PUT operation and bulk uploads users to DB.
     //only org admins can bulk upload.

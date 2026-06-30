@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,13 +23,14 @@ public class User extends BaseEntity{
     private String email;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     private String firstName;
 
     private String lastName;
 
-    @ManyToOne(fetch = FetchType.LAZY)    //
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
@@ -39,19 +41,25 @@ public class User extends BaseEntity{
     @Column(nullable = false)
     private Boolean active = false;
 
+    @JsonIgnore
     private String activationToken;
 
+    @JsonIgnore
     private Instant activationTokenExpiresAt;
 
+    @JsonIgnore
     private String resetPasswordToken;
 
+    @JsonIgnore
     private Instant resetPasswordTokenExpiresAt;
 
     @Column(nullable = false)
     private Boolean mfaEnabled = false;
 
+    @JsonIgnore
     private String otp;
 
+    @JsonIgnore
     private Instant otpExpiresAt;
 
     private Instant lastLoginAt;
