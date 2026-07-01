@@ -20,9 +20,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
+import org.springframework.security.core.parameters.P;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -177,6 +176,41 @@ public class UserService {
                 .build();
     }
 
+    public Page<UserResponseDto> retrieveUsersByOrganization(
+            final String id, final int page, final int size) {
+
+        if (!this.securityUtil.isSuperAdmin()){
+
+            throw new UnauthorizedException(
+                    "only super admin has permission to view users by organization.");
+        }
+
+        this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
+
+        final Organization organization = this.organizationRepository
+                .findById(id).orElseThrow(() ->
+                        new ResourceNotFoundException("Organization not found."));
+
+        final PageRequest pageRequest = PageRequest.of(page, size,
+                Sort.by("createdAt").descending());
+
+        final Page<User> users = this.userRepository
+                .findByOrganizationAndActiveTrue(organization, pageRequest);
+
+        return users.map(user ->
+                UserResponseDto.builder()
+                        .id(user.getId())
+                        .email(user.getEmail())
+                        .firstName(user.getFirstName())
+                        .lastName(user.getLastName())
+                        .roleName(user.getRole().getName())
+                        .organizationName(organization.getName())
+                        .mfaEnabled(user.getMfaEnabled())
+                        .active(user.getActive())
+                        .createdAt(user.getCreatedAt())
+                        .build());
+    }
+
     //Performs a POST operation and creates a user in DB.
     @Transactional
     public UserResponseDto createUser(final CreateUserRequestDto request){
@@ -313,20 +347,109 @@ public class UserService {
                         .build());
     }
 
+    @Transactional
+    public void activate(final String id, final boolean active,
+                         final boolean isUser){
 
-//    public void activate(final String id, final boolean active,
-//                         final boolean isUser){
-//
-//        if (!this.securityUtil.isSuperAdmin()){
-//
-//            throw new UnauthorizedException(
-//                    "Only super admins can perform this operation.");
-//        }
-//
-//        this.permissionService.requirePermission(PermissionType.MANAGE_USER);
-//
-//        final
-//    }
+        if (!this.securityUtil.isSuperAdmin()){
+
+            throw new UnauthorizedException(
+                    "Only super admins can perform this operation.");
+        }
+
+        if (isUser){
+
+            this.permissionService.requirePermission(PermissionConstants.MANAGE_USER);
+        }
+        else {
+
+            this.permissionService.requirePermission(PermissionConstants.MANAGE_ORGANIZATION);
+        }
+
+        if (isUser){
+
+            final User targetUser = this.userRepository.findById(id)
+                    .orElseThrow(()-> new ResourceNotFoundException("User not found."));
+
+            if (this.securityUtil.isCurrentUser(id)){
+
+                throw new BadRequestException(
+                        "You cannot activate or deactivate your own account.");
+            }
+
+            if (targetUser.getOrganization() != null){
+
+                throw new BadRequestException(
+                        "Organization users cannot be activated or deactivated individually.");
+            }
+
+            if (targetUser.getActive().equals(active)){
+
+                throw new BadRequestException(
+                        active
+                                ? "User is already active."
+                                : "User is already inactive.");
+            }
+
+            targetUser.setActive(active);
+
+            this.userRepository.save(targetUser);
+
+            this.auditService.create(
+                    AuditRequestDto.builder()
+                            .action(active
+                            ? AuditActionConstants.ACTIVATE_USER
+                            : AuditActionConstants.DEACTIVATE_USER)
+                            .entityAffected(EntityAffectedConstants.USER)
+                            .entityId(targetUser.getId())
+                            .description(active
+                                    ? "Activated user: " + targetUser.getEmail()
+                                    : "Deactivated user: " + targetUser.getEmail())
+                            .build());
+        }
+        else {
+
+            final Organization organization =
+                    this.organizationRepository.findById(id)
+                            .orElseThrow(() ->
+                                    new ResourceNotFoundException(
+                                            "Organization not found."));
+
+            if (organization.getActive().equals(active)){
+
+                throw new BadRequestException(
+                        active
+                                ? "Organization is already active."
+                                : "Organization is already inactive.");
+            }
+
+            organization.setActive(active);
+
+            this.organizationRepository.save(organization);
+
+            final List<User> users = this.userRepository
+                    .findByOrganization(organization);
+
+            for (final User user : users){
+
+                user.setActive(active);
+            }
+
+            this.userRepository.saveAll(users);
+
+            this.auditService.create(
+                    AuditRequestDto.builder()
+                            .action(active
+                                    ? AuditActionConstants.ACTIVATE_ORGANIZATION
+                                    : AuditActionConstants.DEACTIVATE_ORGANIZATION)
+                            .entityAffected(EntityAffectedConstants.ORGANIZATION)
+                            .entityId(organization.getId())
+                            .description(active
+                                    ? "Activated organization: " + organization.getName()
+                                    : "Deactivated organization: " + organization.getName())
+                            .build());
+        }
+    }
 
     //performs a PUT operation and bulk uploads users to DB.
     //only org admins can bulk upload.

@@ -6,6 +6,7 @@ import com.fts.tenantbasededuportal.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,6 +42,25 @@ public class UserController {
     @GetMapping("/{id}")
     public UserResponseDto fetchUserById(@PathVariable final String id) {
         return this.userService.retrieveUserById(id);
+    }
+
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @GetMapping("/organizations/{organizationId}")
+    public ResponseEntity<ApiResponseDto<Page<UserResponseDto>>>
+    retrieveUsersByOrganization(
+            @PathVariable final String organizationId,
+            @RequestParam(defaultValue = "0") final int page,
+            @RequestParam(defaultValue = "10")  final int size) {
+
+        final Page<UserResponseDto> response =
+                this.userService.retrieveUsersByOrganization(organizationId,
+                        page, size);
+
+        return ResponseEntity.ok(
+                new ApiResponseDto<>(
+                        HttpStatus.OK.value(),
+                        "Users retrieved successfully.",
+                        response));
     }
 
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")

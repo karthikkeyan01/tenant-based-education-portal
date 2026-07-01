@@ -28,6 +28,9 @@ public interface UserRepository extends JpaRepository<User,String> {
 
     Optional<User> findByIdAndActiveTrue(String id);
 
+    Page<User> findByOrganizationAndActiveTrue(Organization organization,
+            Pageable pageable);
+
     List<User> findByActiveTrue();
 
     List<User> findByOrganizationId(String id);
