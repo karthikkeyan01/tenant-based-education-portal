@@ -10,7 +10,10 @@ import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.security.JwtService;
 import com.fts.tenantbasededuportal.security.UserPrincipal;
-import com.fts.tenantbasededuportal.util.RoleConstants;
+import com.fts.tenantbasededuportal.util.constants.ApplicationConstants;
+import com.fts.tenantbasededuportal.util.constants.AuditActionConstants;
+import com.fts.tenantbasededuportal.util.constants.EntityAffectedConstants;
+import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -80,12 +83,11 @@ public class AuthService {
 
         this.auditService.create(
                 AuditRequestDto.builder()
-                        .action("REGISTER")
-                        .entityAffected("AUTH")
+                        .action(AuditActionConstants.REGISTER)
+                        .entityAffected(EntityAffectedConstants.AUTH)
                         .entityId(user.getId())
                         .description("Individual user registered.")
                         .build());
-
     }
 
     public LoginResponseDto login(final LoginRequestDto request){
@@ -109,7 +111,9 @@ public class AuthService {
 
             user.setOtp(this.passwordEncoder.encode(otp));
 
-            user.setOtpExpiresAt(Instant.now().plus(5, ChronoUnit.MINUTES));
+            user.setOtpExpiresAt(Instant.now()
+                    .plus(ApplicationConstants.OTP_EXPIRY_MINUTES
+                    ,ChronoUnit.MINUTES));
 
             this.userRepository.save(user);
 
@@ -117,8 +121,8 @@ public class AuthService {
 
             this.auditService.create(
                     AuditRequestDto.builder()
-                            .action("LOGIN")
-                            .entityAffected("AUTH")
+                            .action(AuditActionConstants.LOGIN)
+                            .entityAffected(EntityAffectedConstants.AUTH)
                             .entityId(user.getId())
                             .description("OTP sent for login.")
                             .build());
@@ -138,8 +142,8 @@ public class AuthService {
         this.userRepository.save(user);
 
         this.auditService.create(AuditRequestDto.builder()
-                        .action("LOGIN")
-                        .entityAffected("AUTH")
+                        .action(AuditActionConstants.LOGIN)
+                        .entityAffected(EntityAffectedConstants.AUTH)
                         .entityId(user.getId())
                         .description("User logged in.")
                         .build());
@@ -167,7 +171,7 @@ public class AuthService {
 
         if (user.getOtp() == null || user.getOtpExpiresAt() == null) {
 
-            throw new BadRequestException("No OTP has been generated");
+            throw new BadRequestException("No OTP has been generated.");
 
         }
 
@@ -205,8 +209,8 @@ public class AuthService {
 
         this.auditService.create(
                 AuditRequestDto.builder()
-                        .action("LOGIN")
-                        .entityAffected("AUTH")
+                        .action(AuditActionConstants.LOGIN)
+                        .entityAffected(EntityAffectedConstants.AUTH)
                         .entityId(user.getId())
                         .description("User logged in using MFA.")
                         .build());
@@ -235,7 +239,8 @@ public class AuthService {
 
         user.setOtp(this.passwordEncoder.encode(otp));
 
-        user.setOtpExpiresAt(Instant.now().plus(5, ChronoUnit.MINUTES));
+        user.setOtpExpiresAt(Instant.now()
+                .plus(ApplicationConstants.OTP_EXPIRY_MINUTES, ChronoUnit.MINUTES));
 
         this.userRepository.save(user);
 
@@ -243,8 +248,8 @@ public class AuthService {
 
         this.auditService.create(
                 AuditRequestDto.builder()
-                        .action("RESEND_OTP")
-                        .entityAffected("AUTH")
+                        .action(AuditActionConstants.RESEND_OTP)
+                        .entityAffected(EntityAffectedConstants.AUTH)
                         .entityId(user.getId())
                         .description("OTP resent for MFA verification.")
                         .build());
@@ -279,8 +284,8 @@ public class AuthService {
 
         this.auditService.create(
                 AuditRequestDto.builder()
-                        .action("ACTIVATE_ACCOUNT")
-                        .entityAffected("AUTH")
+                        .action(AuditActionConstants.ACTIVATE_ACCOUNT)
+                        .entityAffected(EntityAffectedConstants.AUTH)
                         .entityId(user.getId())
                         .description("User activated account using activation link.")
                         .build());
@@ -299,7 +304,8 @@ public class AuthService {
         user.setResetPasswordToken(resetToken);
 
         user.setResetPasswordTokenExpiresAt(Instant.now()
-                .plus(15, ChronoUnit.MINUTES));
+                .plus(ApplicationConstants.RESET_PASSWORD_EXPIRY_MINUTES
+                        , ChronoUnit.MINUTES));
 
         this.userRepository.save(user);
 
@@ -313,8 +319,8 @@ public class AuthService {
 
         this.auditService.create(
                 AuditRequestDto.builder()
-                        .action("FORGOT_PASSWORD")
-                        .entityAffected("AUTH")
+                        .action(AuditActionConstants.FORGOT_PASSWORD)
+                        .entityAffected(EntityAffectedConstants.AUTH)
                         .entityId(user.getId())
                         .description("Password reset link sent.")
                         .build());
@@ -342,8 +348,8 @@ public class AuthService {
 
         this.auditService.create(
                 AuditRequestDto.builder()
-                        .action("RESET_PASSWORD")
-                        .entityAffected("AUTH")
+                        .action(AuditActionConstants.RESET_PASSWORD)
+                        .entityAffected(EntityAffectedConstants.AUTH)
                         .entityId(user.getId())
                         .description("User reset password.")
                         .build());
@@ -352,8 +358,8 @@ public class AuthService {
     public void logout() {
 
         this.auditService.create(AuditRequestDto.builder()
-                        .action("LOGOUT")
-                        .entityAffected("AUTH")
+                        .action(AuditActionConstants.LOGOUT)
+                        .entityAffected(EntityAffectedConstants.AUTH)
                         .entityId(this.securityUtil.getCurrentUserId())
                         .description("User logged out.")
                         .build());

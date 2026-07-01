@@ -8,7 +8,12 @@ import com.fts.tenantbasededuportal.repository.PermissionRepository;
 import com.fts.tenantbasededuportal.repository.RolePermissionRepository;
 import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
-import com.fts.tenantbasededuportal.util.RoleConstants;
+import com.fts.tenantbasededuportal.service.EmailService;
+import com.fts.tenantbasededuportal.service.PasswordGeneratorService;
+import com.fts.tenantbasededuportal.service.TokenGeneratorService;
+import com.fts.tenantbasededuportal.util.constants.ApplicationConstants;
+import com.fts.tenantbasededuportal.util.constants.PermissionConstants;
+import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -16,17 +21,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
-
-    @Value("${app.super-admin.email}")
-    private String SUPER_ADMIN_EMAIL;
-
-    @Value("${app.super-admin.password}")
-    private String SUPER_ADMIN_PASSWORD;
 
     private final RoleRepository roleRepository;
 
@@ -36,7 +38,16 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
 
+    private final PasswordGeneratorService passwordGeneratorService;
+
+    private final TokenGeneratorService tokenGeneratorService;
+
     private final PasswordEncoder passwordEncoder;
+
+    private final EmailService  emailService;
+
+    @Value("${app.base-url}")
+    private String baseUrl;
 
     @Override
     @Transactional
@@ -50,9 +61,9 @@ public class DataInitializer implements CommandLineRunner {
     private void initializeRoles(){
 
         final String[] roles = {
-                "SUPER_ADMIN",
-                "ORG_ADMIN",
-                "USER"
+                RoleConstants.SUPER_ADMIN,
+                RoleConstants.ORG_ADMIN,
+                RoleConstants.USER
         };
 
         for(final String roleName : roles){
@@ -70,18 +81,18 @@ public class DataInitializer implements CommandLineRunner {
     private void initializePermissions(){
 
         final String[] permissions = {
-                "VIEW_USERS",
-                "CREATE_USER",
-                "MANAGE_USER",
-                "VIEW_PROFILE",
-                "UPDATE_PROFILE",
-                "CHANGE_PASSWORD",
-                "CREATE_ORGANIZATION",
-                "VIEW_ORGANIZATIONS",
-                "UPDATE_ORGANIZATION",
-                "MANAGE_ORGANIZATION",
-                "VIEW_AUDIT_LOGS",
-                "MANAGE_SYSTEM"
+                PermissionConstants.VIEW_USERS,
+                PermissionConstants.CREATE_USER,
+                PermissionConstants.MANAGE_USER,
+                PermissionConstants.VIEW_PROFILE,
+                PermissionConstants.UPDATE_PROFILE,
+                PermissionConstants.CHANGE_PASSWORD,
+                PermissionConstants.CREATE_ORGANIZATION,
+                PermissionConstants.VIEW_ORGANIZATIONS,
+                PermissionConstants.UPDATE_ORGANIZATION,
+                PermissionConstants.MANAGE_ORGANIZATION,
+                PermissionConstants.VIEW_AUDIT_LOGS,
+                PermissionConstants.MANAGE_SYSTEM
         };
 
         for(final String permissionName : permissions){
@@ -99,34 +110,34 @@ public class DataInitializer implements CommandLineRunner {
     private void initializeRolePermissions(){
 
         final Role superAdmin = this.roleRepository
-                        .findByName("SUPER_ADMIN")
+                        .findByName(RoleConstants.SUPER_ADMIN)
                         .orElseThrow();
 
         final Role orgAdmin = this.roleRepository
-                        .findByName("ORG_ADMIN")
+                        .findByName(RoleConstants.ORG_ADMIN)
                         .orElseThrow();
 
         final Role user = this.roleRepository
-                        .findByName("USER")
+                        .findByName(RoleConstants.USER)
                         .orElseThrow();
 
         this.assignAllPermissions(superAdmin);
 
         this.assignPermissions(
                 orgAdmin,
-                "VIEW_USERS",
-                "CREATE_USER",
-                "MANAGE_USER",
-                "VIEW_PROFILE",
-                "UPDATE_PROFILE",
-                "CHANGE_PASSWORD"
+                PermissionConstants.VIEW_USERS,
+                PermissionConstants.CREATE_USER,
+                PermissionConstants.MANAGE_USER,
+                PermissionConstants.VIEW_PROFILE,
+                PermissionConstants.UPDATE_PROFILE,
+                PermissionConstants.CHANGE_PASSWORD
         );
 
         this.assignPermissions(
                 user,
-                "VIEW_PROFILE",
-                "UPDATE_PROFILE",
-                "CHANGE_PASSWORD"
+                PermissionConstants.VIEW_PROFILE,
+                PermissionConstants.UPDATE_PROFILE,
+                PermissionConstants.CHANGE_PASSWORD
         );
     }
 
@@ -181,23 +192,44 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initializeSuperAdmin(){
 
-        if (this.userRepository.existsByEmail(SUPER_ADMIN_EMAIL)){
+        if (this.userRepository.existsByEmail(ApplicationConstants.SUPER_ADMIN_EMAIL)){
+
             return;
         }
 
         final  Role superAdminRole = this.roleRepository
                 .findByName(RoleConstants.SUPER_ADMIN).orElseThrow();
 
-        final String password = this.passwordEncoder
-                .encode(SUPER_ADMIN_PASSWORD);
+        final String generatedPassword = this.passwordGeneratorService
+                .generatePassword(ApplicationConstants.GENERATED_PASSWORD_LENGTH);
 
-        this.userRepository.save(User.builder()
-                .email(SUPER_ADMIN_EMAIL)
-                .password(password)
+        final String encodedPassword = passwordEncoder.encode(generatedPassword);
+
+        final String resetPasswordToken = this.tokenGeneratorService.generateToken();
+
+        final User superAdmin = User.builder()
+                .email(ApplicationConstants.SUPER_ADMIN_EMAIL)
+                .password(encodedPassword)
                 .active(true)
+                .firstName("Super")
+                .lastName("Admin")
                 .role(superAdminRole)
+                .resetPasswordToken(resetPasswordToken)
+                .resetPasswordTokenExpiresAt(Instant.now()
+                        .plus(ApplicationConstants.RESET_PASSWORD_EXPIRY_MINUTES
+                                ,ChronoUnit.MINUTES))
                 .mfaEnabled(false)
-                .build()
-        );
+                .organization(null)
+                .build();
+
+        final User savedUser = this.userRepository.save(superAdmin);
+
+        final String resetPasswordLink =
+                this.baseUrl
+                        + "/auth/reset-password?token="
+                        + resetPasswordToken;
+
+        this.emailService.sendSuperAdminCredentialsMail(savedUser.getEmail(),
+                generatedPassword, resetPasswordLink);
     }
 }

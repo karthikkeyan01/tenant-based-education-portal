@@ -5,7 +5,7 @@ import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
-import com.fts.tenantbasededuportal.enums.PermissionType;
+import com.fts.tenantbasededuportal.util.constants.*;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
 import com.fts.tenantbasededuportal.exception.ResourceNotFoundException;
 import com.fts.tenantbasededuportal.exception.UnauthorizedException;
@@ -25,7 +25,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import com.fts.tenantbasededuportal.util.RoleConstants;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
@@ -66,7 +65,7 @@ public class UserService {
     //Performs a GET operation and fetches all users from the DB.
     public Page<UserResponseDto> retrieveUsers(final Pageable pageable) {
 
-        this.permissionService.requirePermission(PermissionType.VIEW_USERS);
+        this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
 
         final Page<User> users;
 
@@ -122,7 +121,7 @@ public class UserService {
     //Performs a GET operation and fetches the user based on the given id.
     public UserResponseDto retrieveUserById(final String id){
 
-        this.permissionService.requirePermission(PermissionType.VIEW_USERS);
+        this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
 
         if (this.securityUtil.isCurrentUser(id)){
 
@@ -182,10 +181,7 @@ public class UserService {
     @Transactional
     public UserResponseDto createUser(final CreateUserRequestDto request){
 
-        this.permissionService.requirePermission(PermissionType
-                .CREATE_USER);
-
-        final User currentUser = this.securityUtil.getCurrentUser();
+        this.permissionService.requirePermission(PermissionConstants.CREATE_USER);
 
         if (!this.securityUtil.isOrgAdmin()){
 
@@ -205,7 +201,8 @@ public class UserService {
         final Organization organization = this.securityUtil.getCurrentOrganization();
 
         final String temporaryPassword =
-                this.passwordGeneratorService.generatePassword(12);
+                this.passwordGeneratorService.generatePassword(
+                        ApplicationConstants.GENERATED_PASSWORD_LENGTH);
 
         final String activationToken =
                 this.tokenGeneratorService.generateToken();
@@ -221,7 +218,8 @@ public class UserService {
                 .mfaEnabled(false)
                 .activationToken(activationToken)
                 .activationTokenExpiresAt(
-                        Instant.now().plus(24, ChronoUnit.HOURS))
+                        Instant.now().plus(ApplicationConstants.ACTIVATION_LINK_EXPIRY_HOURS
+                                , ChronoUnit.HOURS))
                 .build();
 
         final User savedUser = this.userRepository.save(user);
@@ -236,8 +234,8 @@ public class UserService {
 
         this.auditService.create(
                 AuditRequestDto.builder()
-                        .action("CREATE_USER")
-                        .entityAffected("USER")
+                        .action(AuditActionConstants.CREATE_USER)
+                        .entityAffected(EntityAffectedConstants.USER)
                         .entityId(savedUser.getId())
                         .description("Created user: " + savedUser.getEmail())
                         .build());
@@ -264,7 +262,7 @@ public class UserService {
                     "Only organization admins can activate users.");
         }
 
-        this.permissionService.requirePermission(PermissionType.MANAGE_USER);
+        this.permissionService.requirePermission(PermissionConstants.MANAGE_USER);
 
         if(this.securityUtil.isCurrentUser(userId)){
 
@@ -305,9 +303,9 @@ public class UserService {
         this.auditService.create(
                 AuditRequestDto.builder()
                         .action(active
-                                ? "ACTIVATE_USER"
-                                : "DEACTIVATE_USER")
-                        .entityAffected("USER")
+                                ? AuditActionConstants.ACTIVATE_USER
+                                : AuditActionConstants.DEACTIVATE_USER)
+                        .entityAffected(EntityAffectedConstants.USER)
                         .entityId(targetUser.getId())
                         .description(active
                                 ? "Activated user: " + targetUser.getEmail()

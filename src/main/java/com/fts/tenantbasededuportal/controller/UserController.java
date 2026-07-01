@@ -27,7 +27,7 @@ public class UserController {
             final Pageable pageable) {
 
         final Page<UserResponseDto> users =
-                this.userService.fetchUsers(pageable);
+                this.userService.retrieveUsers(pageable);
 
         return ResponseEntity.ok(
                 ApiResponseDto.<Page<UserResponseDto>>builder()
@@ -40,7 +40,7 @@ public class UserController {
     @PreAuthorize("hasAuthority('VIEW_USERS')")
     @GetMapping("/{id}")
     public UserResponseDto fetchUserById(@PathVariable final String id) {
-        return this.userService.fetchUserById(id);
+        return this.userService.retrieveUserById(id);
     }
 
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")

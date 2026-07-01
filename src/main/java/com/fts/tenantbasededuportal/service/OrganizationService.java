@@ -8,7 +8,7 @@ import com.fts.tenantbasededuportal.exception.ResourceNotFoundException;
 import com.fts.tenantbasededuportal.exception.UnauthorizedException;
 import com.fts.tenantbasededuportal.repository.OrganizationRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
-import com.fts.tenantbasededuportal.util.RoleConstants;
+import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

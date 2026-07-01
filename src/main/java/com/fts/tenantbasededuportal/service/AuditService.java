@@ -4,7 +4,7 @@ import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
 import com.fts.tenantbasededuportal.dto.audit.AuditResponseDto;
 import com.fts.tenantbasededuportal.entity.AuditLog;
 import com.fts.tenantbasededuportal.entity.User;
-import com.fts.tenantbasededuportal.enums.PermissionType;
+import com.fts.tenantbasededuportal.util.constants.PermissionConstants;
 import com.fts.tenantbasededuportal.repository.AuditLogRepository;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,7 +53,7 @@ public class AuditService {
 
     public Page<AuditResponseDto> retrieveAuditLogs(final int page, final int size) {
 
-        this.permissionService.requirePermission(PermissionType.VIEW_AUDIT_LOGS);
+        this.permissionService.requirePermission(PermissionConstants.VIEW_AUDIT_LOGS);
 
         final Page<AuditLog> auditLogs =
                 this.auditLogRepository.findAll(PageRequest.of
@@ -86,7 +86,7 @@ public class AuditService {
             final int page,
             final int size) {
 
-        this.permissionService.requirePermission(PermissionType.VIEW_AUDIT_LOGS);
+        this.permissionService.requirePermission(PermissionConstants.VIEW_AUDIT_LOGS);
 
         final Page<AuditLog> auditLogs =
                 this.auditLogRepository.findByUser_Id(
