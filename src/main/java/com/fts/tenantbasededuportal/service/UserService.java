@@ -15,13 +15,9 @@ import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.*;
-import org.springframework.security.core.parameters.P;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -62,9 +58,13 @@ public class UserService {
     private String baseUrl;
 
     //Performs a GET operation and fetches all users from the DB.
-    public Page<UserResponseDto> retrieveUsers(final Pageable pageable) {
+    public Page<UserResponseDto> retrieveUsers(
+            final int page, final int size) {
 
         this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
+
+        final PageRequest pageRequest = PageRequest.of(
+                page, size,Sort.by("created_at").descending());
 
         final Page<User> users;
 
@@ -72,14 +72,14 @@ public class UserService {
         if(this.securityUtil.isSuperAdmin()){
 
             users = this.userRepository.findByActiveTrueAndIdNot (
-                    this.securityUtil.getCurrentUserId(), pageable);
+                    this.securityUtil.getCurrentUserId(), pageRequest);
         }
         //checks if the logged-in user is org admin if so allows the operation.
         else if (this.securityUtil.isOrgAdmin()) {
 
             users = this.userRepository.findByOrganizationAndActiveTrueAndIdNot(
                     this.securityUtil.getCurrentOrganization(),
-                    this.securityUtil.getCurrentUserId(), pageable);
+                    this.securityUtil.getCurrentUserId(), pageRequest);
         }
         //deny the operation for users.
         else {
@@ -87,34 +87,20 @@ public class UserService {
                     "you don't have permission to view users");
         }
 
-        final List<UserResponseDto> response = new ArrayList<>();
-
-        for(final User user : users.getContent()){
-
-            String organizationName = null;
-
-            if (user.getOrganization() != null){
-
-                organizationName = user.getOrganization().getName();
-            }
-
-            response.add(
-                    UserResponseDto.builder()
-                            .id(user.getId())
-                            .email(user.getEmail())
-                            .firstName(user.getFirstName())
-                            .lastName(user.getLastName())
-                            .roleName(user.getRole().getName())
-                            .mfaEnabled(user.getMfaEnabled())
-                            .active(user.getActive())
-                            .organizationName(organizationName)
-                            .createdAt(user.getCreatedAt())
-                            .build()
-            );
-        }
-
-        return new PageImpl<>(response,pageable,
-                users.getTotalElements());
+        return users.map(user ->
+                UserResponseDto.builder()
+                        .id(user.getId())
+                        .email(user.getEmail())
+                        .firstName(user.getFirstName())
+                        .lastName(user.getLastName())
+                        .roleName(user.getRole().getName())
+                        .mfaEnabled(user.getMfaEnabled())
+                        .active(user.getActive())
+                        .organizationName(user.getOrganization() != null
+                                ? user.getOrganization().getName()
+                                : null)
+                        .createdAt(user.getCreatedAt())
+                        .build());
     }
 
     //Performs a GET operation and fetches the user based on the given id.
@@ -156,20 +142,15 @@ public class UserService {
             }
         }
 
-        String organizationName = null;
-
-        if (targetUser.getOrganization() != null) {
-
-            organizationName = targetUser.getOrganization().getName();
-        }
-
         return UserResponseDto.builder()
                 .id(targetUser.getId())
                 .email(targetUser.getEmail())
                 .firstName(targetUser.getFirstName())
                 .lastName(targetUser.getLastName())
                 .roleName(targetUser.getRole().getName())
-                .organizationName(organizationName)
+                .organizationName(targetUser.getOrganization() != null
+                        ? targetUser.getOrganization().getName()
+                        : null)
                 .mfaEnabled(targetUser.getMfaEnabled())
                 .active(targetUser.getActive())
                 .createdAt(targetUser.getCreatedAt())
@@ -453,57 +434,55 @@ public class UserService {
 
     //performs a PUT operation and bulk uploads users to DB.
     //only org admins can bulk upload.
+    @Transactional
     public BulkUploadResponseDto bulkUploadUsers(
             final MultipartFile file, final String organizationId){
 
-        final User currentUser = this.securityUtil.getCurrentUser();
-
-        final String currentRole = currentUser.getRole().getName();
-
         //checks if current user is super admin or org admin.
-        if (!RoleConstants.SUPER_ADMIN.equals(currentRole)&&
-                !RoleConstants.ORG_ADMIN.equals(currentRole)){
+        if (!this.securityUtil.isSuperAdmin() &&
+                !this.securityUtil.isOrgAdmin()){
 
             throw new UnauthorizedException(
                     "You are not authorized to bulk upload users.");
         }
 
+        this.permissionService.requirePermission(
+                PermissionConstants.CREATE_USER);
+
         final Organization targetOrganization;
 
-        if (RoleConstants.SUPER_ADMIN.equals(currentRole)){
+        if (this.securityUtil.isSuperAdmin()){
 
             if (organizationId == null || organizationId.isBlank()){
 
                 throw new BadRequestException("organization Id is required");
             }
 
-            targetOrganization = organizationRepository.findByIdAndDeletedFalse(organizationId)
-                    .orElseThrow(()-> new ResourceNotFoundException("Organization not found"));
-
+            targetOrganization = organizationRepository.findByIdAndActiveTrue(organizationId)
+                    .orElseThrow(()-> new ResourceNotFoundException(
+                            "Organization not found"));
         }
         else {
 
-            targetOrganization = currentUser.getOrganization();
+            targetOrganization = this.securityUtil.getCurrentOrganization();
         }
-
-
 
         final String fileName = file.getOriginalFilename();
 
-        if (fileName == null) {
+        if (fileName == null || fileName.isBlank()) {
 
             throw new BadRequestException(
-                    "File name is missing.");
+                    "invalid file");
         }
 
         if (fileName.endsWith(".csv")){
 
-            return uploadCsv(file, currentUser,  targetOrganization);
+            return this.uploadCsv(file, targetOrganization);
         }
 
         if (fileName.endsWith(".xlsx")){
 
-            return uploadExcel(file, currentUser,  targetOrganization);
+            return this.uploadExcel(file, targetOrganization);
         }
 
         throw new BadRequestException(
@@ -513,35 +492,37 @@ public class UserService {
     //method for uploading/restoring csv called by bulk upload and restore.
     //takes file, current user, a boolean restore and organization id as parameters based on the operation.
     private BulkUploadResponseDto uploadCsv
-            (final MultipartFile file, final User currentUser,
+            (final MultipartFile file,
              final Organization targetOrganization ) {
 
         final Role userRole = this.roleRepository.findByName(RoleConstants.USER)
                 .orElseThrow(()-> new ResourceNotFoundException("Role not found."));
 
-        final List<User> users = new ArrayList<>();
-
         //sets variables needed for response dto.
         int total = 0;
-        int processed = 0;
+        int uploaded = 0;
         int skipped = 0;
+        int emailFailed = 0;
+
+        final List<String> failedEmails = new ArrayList<>();
 
         try (BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))){
 
             String line;
-            String header = br.readLine();
+
+            final String headerLine = br.readLine();
 
             //makes sure header file is present.
-            if (header == null) {
+            if (headerLine == null) {
 
                 throw new BadRequestException("CSV file is empty.");
             }
 
-            header = header.trim();
+            final String header = headerLine.trim();
 
             //checks the header order and throws error if the order is not one of the given orders.
-            if (!header.equalsIgnoreCase("email,password")
-            && !header.equalsIgnoreCase("email,password,firstName,secondName")) {
+            if (!header.equalsIgnoreCase("email")
+            && !header.equalsIgnoreCase("email,firstName,lastName")) {
 
                 throw new BadRequestException("Invalid CSV header.");
             }
@@ -549,78 +530,131 @@ public class UserService {
             //main loop runs till the next line in file is null.
             while ((line = br.readLine()) != null){
 
-                total++;
+                if (line.isBlank()) {
 
-                String[] values = line.split(",");
-
-                //can only have values of length of format mentioned above.
-                if (values.length != 2 && values.length != 4) {
-
-                    skipped++;
                     continue;
                 }
 
-                String email = values[0].trim();
+                total++;
 
-                String password = values[1].trim();
+                final String[] values = line.split(",");
+
+                //can only have values of length of format mentioned above.
+                if (header.equalsIgnoreCase("email")) {
+
+                    if (values.length != 1) {
+
+                        skipped++;
+                        continue;
+                    }
+
+                } else {
+
+                    if (values.length != 3) {
+
+                        skipped++;
+                        continue;
+                    }
+                }
+
+                final String email = values[0].trim();
 
                 String firstName = null;
 
-                String secondName = null;
+                String lastName = null;
 
-                if (values.length == 4) {
+                if (values.length == 3) {
 
-                    firstName = values[2].trim();
+                    firstName = values[1].trim();
 
-                    secondName = values[3].trim();
+                    lastName = values[2].trim();
                 }
 
-                final User existingUser = this.userRepository.findByEmail(email)
-                        .orElse(null);
-
-                if (existingUser != null){
+                if (email.isBlank()) {
 
                     skipped++;
                     continue;
                 }
 
-                User user = User.builder()
-                        .email(email)
-                        .firstName(firstName)
-                        .secondName(secondName)
-                        .password(this.passwordEncoder.encode(password))
-                        .role(userRole)
-                        .organization(targetOrganization)
-                        .deleted(false)
-                        .mfaEnabled(false)
-                        .build();
+                if (values.length == 3
+                        && (firstName.isBlank() || lastName.isBlank())) {
 
-                users.add(user);
+                    skipped++;
+                    continue;
+                }
 
-                processed++;
+                if (this.userRepository.existsByEmail(email)) {
+
+                    skipped++;
+                    continue;
+                }
+
+                final String temporaryPassword = this.passwordGeneratorService
+                        .generatePassword(ApplicationConstants.GENERATED_PASSWORD_LENGTH);
+
+                final String activationToken = this.tokenGeneratorService.generateToken();
+
+                final User user = User.builder()
+                            .email(email)
+                            .firstName(firstName)
+                            .lastName(lastName)
+                            .password(this.passwordEncoder.encode(temporaryPassword))
+                            .role(userRole)
+                            .organization(targetOrganization)
+                            .active(false)
+                            .mfaEnabled(false)
+                            .activationToken(activationToken)
+                            .activationTokenExpiresAt(Instant.now().plus(
+                                    ApplicationConstants
+                                            .ACTIVATION_LINK_EXPIRY_HOURS, ChronoUnit.HOURS))
+                            .build();
+
+                final User savedUser = this.userRepository.save(user);
+
+                uploaded++;
+
+                final String activationLink =
+                        this.baseUrl
+                                + "/auth/activate-account?token="
+                                + activationToken;
+
+                try {
+
+                    this.emailService.sendActivationMail(
+                            savedUser.getEmail(), activationLink);
+                }
+                catch (final Exception exception) {
+
+                    emailFailed++;
+
+                    failedEmails.add(savedUser.getEmail());
+                }
             }
 
-            this.userRepository.saveAll(users);
-
-            this.auditService.log(
-                    currentUser,
-                    "BULK_UPLOAD_USERS",
-                    "USER",
-                    null,
-                    "Bulk uploaded " + processed + " users from CSV");
+            this.auditService.create(
+                    AuditRequestDto.builder()
+                            .action(AuditActionConstants.BULK_UPLOAD_USERS)
+                            .entityAffected(EntityAffectedConstants.USER)
+                            .description("Bulk uploaded "
+                            + uploaded
+                            + " users to organization: "
+                            + targetOrganization.getName())
+                            .build());
 
             return BulkUploadResponseDto.builder()
                     .totalRecords(total)
-                    .processedRecords(processed)
+                    .uploadedRecords(uploaded)
                     .skippedRecords(skipped)
+                    .emailFailedRecords(emailFailed)
+                    .failedEmails(failedEmails)
                     .build();
 
         }
-        catch (BadRequestException e) {
-            throw e;
+        catch (final BadRequestException exception) {
+            throw exception;
         }
 
-        catch (Exception e) {
+        catch (final Exception exception) {
 
             throw new BadRequestException("Invalid CSV file.");
         }
@@ -628,65 +662,62 @@ public class UserService {
 
     //method for bulk upload and restore users.
     private BulkUploadResponseDto uploadExcel
-            (final MultipartFile file, final User currentUser,
-             final Organization targetOrganization) {
+            (final MultipartFile file, final Organization targetOrganization) {
 
         final Role userRole = this.roleRepository.findByName(RoleConstants.USER)
                 .orElseThrow(()-> new ResourceNotFoundException("Role not found."));
 
-        final List<User> users = new ArrayList<>();
-
         int total = 0;
-        int processed = 0;
+        int uploaded = 0;
         int skipped = 0;
+        int emailFailed = 0;
+
+        final List<String> failedEmails = new ArrayList<>();
 
         try(InputStream is = file.getInputStream();
                 Workbook workbook = WorkbookFactory.create(is)) {
 
-            Sheet sheet = workbook.getSheetAt(0);
+            final DataFormatter formatter = new DataFormatter();
 
-            Row headerRow = sheet.getRow(0);
+            final Sheet sheet = workbook.getSheetAt(0);
+
+            final Row headerRow = sheet.getRow(0);
 
             if(headerRow == null){
 
                 throw new BadRequestException("Excel file is empty.");
             }
 
-            if (headerRow.getCell(0) == null || headerRow.getCell(1) == null) {
+            final String column1 = formatter.formatCellValue(
+                    headerRow.getCell(0)).trim();
 
-                throw new BadRequestException("Invalid Excel header.");
-            }
-
-            String column1 = headerRow.getCell(0).getStringCellValue().trim();
-
-            String column2 = headerRow.getCell(1).getStringCellValue().trim();
+            String column2 = null;
 
             String column3 = null;
 
-            String column4 = null;
+            boolean oneColumnFormat = headerRow.getLastCellNum() == 1
+                            && column1.equalsIgnoreCase("email");
 
-            boolean twoColumnFormat = column1.equalsIgnoreCase("email")
-                    && column2.equalsIgnoreCase("password");
+            if (headerRow.getCell(1) != null) {
+
+                column2 = formatter.formatCellValue(
+                        headerRow.getCell(1)).trim();
+            }
 
             if (headerRow.getCell(2) != null) {
 
-                column3 = headerRow.getCell(2).getStringCellValue().trim();
+                column3 = formatter.formatCellValue(
+                        headerRow.getCell(2)).trim();
             }
 
-            if (headerRow.getCell(3) != null) {
-
-                column4 = headerRow.getCell(3).getStringCellValue().trim();
-            }
-
-            boolean fourColumnFormat = headerRow.getCell(2) != null
-                            && headerRow.getCell(3) != null
+            boolean threeColumnFormat = headerRow.getCell(1) != null
+                            && headerRow.getCell(2) != null
                             && column1.equalsIgnoreCase("email")
-                            && column2.equalsIgnoreCase("password")
-                            && "firstName".equalsIgnoreCase(column3)
-                            && "secondName".equalsIgnoreCase(column4);
+                            && "firstName".equalsIgnoreCase(column2)
+                            && "lastName".equalsIgnoreCase(column3);
 
             //checks both headers.
-            if (!twoColumnFormat && !fourColumnFormat) {
+            if (!oneColumnFormat && !threeColumnFormat) {
 
                 throw new BadRequestException("Invalid Excel header.");
 
@@ -695,7 +726,7 @@ public class UserService {
             //main loop.
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
 
-                Row row = sheet.getRow(i);
+                final Row row = sheet.getRow(i);
 
                 if(row == null){
 
@@ -704,89 +735,208 @@ public class UserService {
 
                 total++;
 
-                if (row.getCell(0) == null
-                        || row.getCell(1) == null) {
+                if (oneColumnFormat) {
 
-                    skipped++;
+                    if (row.getCell(0) == null) {
 
-                    continue;
+                        skipped++;
+
+                        continue;
+                    }
+                }
+                else {
+
+                    if (row.getCell(0) == null
+                    || row.getCell(1) == null
+                    || row.getCell(2) == null) {
+
+                        skipped++;
+                        continue;
+                    }
                 }
 
-                String email = row.getCell(0)
-                                .getStringCellValue()
-                                .trim();
-
-                String password = row.getCell(1)
-                                .getStringCellValue()
-                                .trim();
+                final String email = formatter.formatCellValue(
+                        row.getCell(0)).trim();
 
                 String firstName = null;
 
-                if (row.getCell(2) != null) {
+                String lastName =  null;
 
-                    firstName = row.getCell(2)
-                            .getStringCellValue()
-                            .trim();
+                if (threeColumnFormat) {
+
+                    firstName = formatter.formatCellValue(
+                            row.getCell(1)).trim();
+
+                    lastName = formatter.formatCellValue(
+                            row.getCell(2)).trim();
                 }
 
-                String secondName =  null;
-
-                if (row.getCell(3) != null) {
-
-                    secondName = row.getCell(3)
-                            .getStringCellValue()
-                            .trim();
-                }
-
-                //checks if user is already existing.
-                final User existingUser = this.userRepository.findByEmail(email)
-                        .orElse(null);
-
-                if (existingUser != null){
+                if (email.isBlank()) {
 
                     skipped++;
                     continue;
                 }
 
-                User user = User.builder()
+                if (threeColumnFormat && (firstName.isBlank()
+                        || lastName.isBlank())){
+
+                    skipped++;
+                    continue;
+                }
+
+                //checks if user is already existing.
+                if (this.userRepository.existsByEmail(email)){
+
+                    skipped++;
+                    continue;
+                }
+
+                final String temporaryPassword = this.passwordGeneratorService
+                        .generatePassword(ApplicationConstants.GENERATED_PASSWORD_LENGTH);
+
+                final String activationToken = this.tokenGeneratorService.generateToken();
+
+                final User user = User.builder()
                         .email(email)
                         .firstName(firstName)
-                        .secondName(secondName)
-                        .password(this.passwordEncoder.encode(password))
+                        .lastName(lastName)
+                        .password(this.passwordEncoder.encode(temporaryPassword))
                         .role(userRole)
                         .organization(targetOrganization)
-                        .deleted(false)
+                        .active(false)
                         .mfaEnabled(false)
+                        .activationToken(activationToken)
+                        .activationTokenExpiresAt(Instant.now().plus(
+                                ApplicationConstants
+                                        .ACTIVATION_LINK_EXPIRY_HOURS, ChronoUnit.HOURS))
                         .build();
 
-                users.add(user);
+                final User savedUser = this.userRepository.save(user);
 
-                processed++;
+                final String activationLink =
+                        this.baseUrl
+                                + "/auth/activate-account?token="
+                                + activationToken;
+
+                try {
+
+                    this.emailService.sendActivationMail(
+                            savedUser.getEmail(), activationLink);
+                }
+                catch (final Exception exception){
+
+                    emailFailed++;
+
+                    failedEmails.add(savedUser.getEmail());
+                }
+
+
+                uploaded++;
             }
 
-            this.userRepository.saveAll(users);
-
-            this.auditService.log(
-                    currentUser,
-                    "BULK_UPLOAD_USERS",
-                    "USER",
-                    null,
-                    "Bulk uploaded " + processed + " users from Excel");
+            this.auditService.create(
+                    AuditRequestDto.builder()
+                            .action(AuditActionConstants.BULK_UPLOAD_USERS)
+                            .entityAffected(EntityAffectedConstants.USER)
+                            .description("Bulk uploaded "
+                                    + uploaded
+                                    + " users to organization: "
+                                    + targetOrganization.getName())
+                            .build());
 
             return BulkUploadResponseDto.builder()
                     .totalRecords(total)
-                    .processedRecords(processed)
+                    .uploadedRecords(uploaded)
                     .skippedRecords(skipped)
+                    .emailFailedRecords(emailFailed)
+                    .failedEmails(failedEmails)
                     .build();
         }
-        catch (BadRequestException e) {
+        catch (final BadRequestException exception) {
 
-            throw e;
+            throw exception;
         }
 
-        catch (Exception e) {
+        catch (final Exception exception) {
 
             throw new BadRequestException("Invalid Excel file.");
         }
+    }
+
+    @Transactional
+    public void resendActivationEmail(final String userId) {
+
+        if (!this.securityUtil.isSuperAdmin()
+                && !this.securityUtil.isOrgAdmin()){
+
+            throw new UnauthorizedException("You are not allowed to resend activation email.");
+        }
+
+        this.permissionService.requirePermission(
+                PermissionConstants.RESEND_ACTIVATION_EMAIL);
+
+        final User targetUser = this.userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found."));
+
+        if (targetUser.getActive()) {
+
+            throw new BadRequestException(
+                    "User account is already activated.");
+        }
+
+        if (this.securityUtil.isOrgAdmin()){
+
+            if (targetUser.getOrganization() == null
+                    || !this.securityUtil.isSameOrganization(
+                            targetUser.getOrganization().getId())){
+
+                                throw new UnauthorizedException(
+                                        "You can only resend activation emails to users in your own organization.");
+            }
+
+            if (!RoleConstants.USER.equals(targetUser.getRole().getName())) {
+
+                throw new UnauthorizedException(
+                        "Organization admins can only resend activation emails to users.");
+            }
+        }
+
+        if (this.securityUtil.isSuperAdmin()
+                && targetUser.getOrganization() != null) {
+
+            throw new BadRequestException(
+                    "Organization users must be managed by their organization administrator.");
+        }
+
+        final String activationToken =
+                this.tokenGeneratorService.generateToken();
+
+        targetUser.setActivationToken(activationToken);
+
+        targetUser.setActivationTokenExpiresAt(
+                Instant.now().plus(
+                        ApplicationConstants.ACTIVATION_LINK_EXPIRY_HOURS,
+                        ChronoUnit.HOURS));
+
+        final User savesUser = this.userRepository.save(targetUser);
+
+        final String activationLink =
+                this.baseUrl
+                        + "/auth/activate-account?token="
+                        + activationToken;
+
+        this.emailService.sendActivationMail(
+                savesUser.getEmail(),
+                activationLink);
+
+        this.auditService.create(
+                AuditRequestDto.builder()
+                        .action(AuditActionConstants.RESEND_ACTIVATION_EMAIL)
+                        .entityAffected(EntityAffectedConstants.USER)
+                        .entityId(savesUser.getId())
+                        .description("Resent activation email to: "
+                                + savesUser.getEmail())
+                        .build());
     }
 }

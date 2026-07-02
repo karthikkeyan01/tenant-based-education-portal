@@ -84,6 +84,7 @@ public class DataInitializer implements CommandLineRunner {
                 PermissionConstants.VIEW_USERS,
                 PermissionConstants.CREATE_USER,
                 PermissionConstants.MANAGE_USER,
+                PermissionConstants.RESEND_ACTIVATION_EMAIL,
                 PermissionConstants.VIEW_PROFILE,
                 PermissionConstants.UPDATE_PROFILE,
                 PermissionConstants.CHANGE_PASSWORD,
@@ -128,6 +129,7 @@ public class DataInitializer implements CommandLineRunner {
                 PermissionConstants.VIEW_USERS,
                 PermissionConstants.CREATE_USER,
                 PermissionConstants.MANAGE_USER,
+                PermissionConstants.RESEND_ACTIVATION_EMAIL,
                 PermissionConstants.VIEW_PROFILE,
                 PermissionConstants.UPDATE_PROFILE,
                 PermissionConstants.CHANGE_PASSWORD

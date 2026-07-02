@@ -3,17 +3,14 @@ package com.fts.tenantbasededuportal.controller;
 import com.fts.tenantbasededuportal.dto.ApiResponseDto;
 import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/users")
@@ -25,23 +22,33 @@ public class UserController {
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ORG_ADMIN')")
     public ResponseEntity<ApiResponseDto<Page<UserResponseDto>>> fetchUsers(
-            final Pageable pageable) {
+            @RequestParam(defaultValue = "0") final int page,
+            @RequestParam(defaultValue = "10") final int size) {
 
-        final Page<UserResponseDto> users =
-                this.userService.retrieveUsers(pageable);
+        final Page<UserResponseDto> response =
+                this.userService.retrieveUsers(page, size);
 
         return ResponseEntity.ok(
                 ApiResponseDto.<Page<UserResponseDto>>builder()
                         .code(HttpStatus.OK.value())
                         .message("Users fetched successfully.")
-                        .data(users)
+                        .data(response)
                         .build());
     }
 
-    @PreAuthorize("hasAuthority('VIEW_USERS')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
     @GetMapping("/{id}")
-    public UserResponseDto fetchUserById(@PathVariable final String id) {
-        return this.userService.retrieveUserById(id);
+    public ResponseEntity<ApiResponseDto<UserResponseDto>> retrieveUserById(
+            @PathVariable final String id) {
+
+        final UserResponseDto response = this.userService.retrieveUserById(id);
+
+        return ResponseEntity.ok(
+                ApiResponseDto.<UserResponseDto>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("User retrieved successfully.")
+                        .data(response)
+                        .build());
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
@@ -57,26 +64,94 @@ public class UserController {
                         page, size);
 
         return ResponseEntity.ok(
-                new ApiResponseDto<>(
-                        HttpStatus.OK.value(),
-                        "Users retrieved successfully.",
-                        response));
+                ApiResponseDto.<Page<UserResponseDto>>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Users retrieved successfully.")
+                        .data(response)
+                        .build());
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ORG_ADMIN')")
     @PostMapping
-    public UserResponseDto createUser(
+    public ResponseEntity<ApiResponseDto<UserResponseDto>> createUser(
+            @Valid
             @RequestBody final CreateUserRequestDto request) {
 
-        return this.userService.createUser(request);
+        final UserResponseDto response =
+                this.userService.createUser(request);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(
+                        ApiResponseDto.<UserResponseDto>builder()
+                                .code(HttpStatus.CREATED.value())
+                                .message("User created successfully.")
+                                .data(response)
+                                .build());
     }
 
-    @PreAuthorize("hasAuthority('CREATE_USER')")
-    @PostMapping("/bulk-upload")
-    public BulkUploadResponseDto bulkUploadFile
-            (@RequestParam("file") final MultipartFile file,
-             @RequestParam(required = false) final String organizationId) {
+    @PreAuthorize("hasRole('ORG_ADMIN')")
+    @PutMapping("/{userId}/activate")
+    public ResponseEntity<ApiResponseDto<Void>> activate(
+            @PathVariable final String userId,
+            @RequestParam final boolean active) {
 
-        return this.userService.bulkUploadUsers(file, organizationId);
+        this.userService.activate(userId, active);
+
+        return ResponseEntity.ok(
+                ApiResponseDto.<Void>builder()
+                        .code(HttpStatus.OK.value())
+                        .message(active
+                                ? "User activated successfully."
+                                : "User deactivated successfully.")
+                        .build());
+    }
+
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PutMapping("/activate")
+    public ResponseEntity<ApiResponseDto<Void>> activate(
+            @RequestParam final String id,
+            @RequestParam final boolean active,
+            @RequestParam final boolean isUser) {
+
+        this.userService.activate(id, active, isUser);
+
+        return ResponseEntity.ok(
+                ApiResponseDto.<Void>builder()
+                        .code(HttpStatus.OK.value())
+                        .message(active
+                                ? "Activation completed successfully."
+                                : "Deactivation completed successfully.")
+                        .build());
+    }
+
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
+    @PostMapping("/bulk-upload")
+    public ResponseEntity<ApiResponseDto<BulkUploadResponseDto>> uploadBulk(
+            @RequestParam("file") final MultipartFile file,
+            @RequestParam(required = false) final String organizationId){
+
+        final BulkUploadResponseDto response = this.userService
+                .bulkUploadUsers(file, organizationId);
+
+        return ResponseEntity.ok(
+                ApiResponseDto.<BulkUploadResponseDto>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Bulk upload completed successfully.")
+                        .data(response)
+                        .build());
+    }
+
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ORG_ADMIN')")
+    @PostMapping("/{userId}/resend-activation")
+    public ResponseEntity<ApiResponseDto<Void>> resendActivationEmail(
+            @PathVariable final String userId) {
+
+        this.userService.resendActivationEmail(userId);
+
+        return ResponseEntity.ok(
+                ApiResponseDto.<Void>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Activation email sent successfully.")
+                        .build());
     }
 }

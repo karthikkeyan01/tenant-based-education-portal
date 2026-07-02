@@ -7,6 +7,7 @@ public class PermissionConstants {
     public static final String VIEW_USERS = "VIEW_USERS";
     public static final String CREATE_USER = "CREATE_USER";
     public static final String MANAGE_USER = "MANAGE_USER";
+    public static final String RESEND_ACTIVATION_EMAIL = "RESEND_ACTIVATION_EMAIL";
 
     public static final String VIEW_PROFILE = "VIEW_PROFILE";
     public static final String UPDATE_PROFILE = "UPDATE_PROFILE";

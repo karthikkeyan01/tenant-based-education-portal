@@ -25,10 +25,11 @@ public class AuthController {
         this.authService.register(request);
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponseDto<>(
-                        HttpStatus.CREATED.value(),
-                        "Registration successful.",
-                        null));
+                .body(
+                        ApiResponseDto.<Void>builder()
+                                .code(HttpStatus.CREATED.value())
+                                .message("Registration successful.")
+                                .build());
     }
 
     @PostMapping("/login")
@@ -40,10 +41,11 @@ public class AuthController {
         final LoginResponseDto response = this.authService.login(request);
 
         return ResponseEntity.ok(
-                new ApiResponseDto<>(
-                        HttpStatus.OK.value(),
-                        "Login successful.",
-                        response));
+                ApiResponseDto.<LoginResponseDto>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Login successful.")
+                        .data(response)
+                        .build());
     }
 
     @PostMapping("/verify-otp")
@@ -54,10 +56,11 @@ public class AuthController {
         final LoginResponseDto response = this.authService.verifyOtp(email, otp);
 
         return ResponseEntity.ok(
-                new ApiResponseDto<>(
-                        HttpStatus.OK.value(),
-                        "OTP verified successfully.",
-                        response));
+                ApiResponseDto.<LoginResponseDto>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("OTP verified successfully.")
+                        .data(response)
+                        .build());
     }
 
     @PostMapping("/resend-otp")
@@ -67,10 +70,10 @@ public class AuthController {
         this.authService.resendOtp(email);
 
         return ResponseEntity.ok(
-                new ApiResponseDto<>(
-                        HttpStatus.OK.value(),
-                        "OTP resent successfully.",
-                        null));
+                ApiResponseDto.<Void>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("OTP resent successfully.")
+                        .build());
     }
 
     @PostMapping("/activate-account")
@@ -81,10 +84,10 @@ public class AuthController {
         this.authService.activateAccount(token, password);
 
         return ResponseEntity.ok(
-                new ApiResponseDto<>(
-                        HttpStatus.OK.value(),
-                        "Account activated successfully.",
-                        null));
+                ApiResponseDto.<Void>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Account activated successfully.")
+                        .build());
     }
 
     @PostMapping("/forgot-password")
@@ -95,10 +98,10 @@ public class AuthController {
         this.authService.forgotPassword(email);
 
         return ResponseEntity.ok(
-                new ApiResponseDto<>(
-                        HttpStatus.OK.value(),
-                        "Password reset link sent successfully.",
-                        null));
+                ApiResponseDto.<Void>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Password reset link sent successfully.")
+                        .build());
     }
 
     @PostMapping("/reset-password")
@@ -109,10 +112,10 @@ public class AuthController {
         this.authService.resetPassword(token, password);
 
         return ResponseEntity.ok(
-                new ApiResponseDto<>(
-                        HttpStatus.OK.value(),
-                        "Password reset successfully.",
-                        null));
+                ApiResponseDto.<Void>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Password reset successfully.")
+                        .build());
     }
 
     @PostMapping("/logout")
@@ -121,9 +124,9 @@ public class AuthController {
         this.authService.logout();
 
         return ResponseEntity.ok(
-                new ApiResponseDto<>(
-                        HttpStatus.OK.value(),
-                        "Logout successful.",
-                        null));
+                ApiResponseDto.<Void>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Logout successful.")
+                        .build());
     }
 }

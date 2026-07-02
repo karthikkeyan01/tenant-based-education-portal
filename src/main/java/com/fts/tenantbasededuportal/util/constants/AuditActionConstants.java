@@ -13,6 +13,7 @@ public class AuditActionConstants {
     public static final String RESEND_OTP = "RESEND_OTP";
 
     public static final String ACTIVATE_ACCOUNT = "ACTIVATE_ACCOUNT";
+    public static final String RESEND_ACTIVATION_EMAIL = "RESEND_ACTIVATION_EMAIL";
 
     public static final String RESET_PASSWORD = "RESET_PASSWORD";
     public static final String FORGOT_PASSWORD = "FORGOT_PASSWORD";
@@ -23,6 +24,7 @@ public class AuditActionConstants {
     public static final String CREATE_USER = "CREATE_USER";
     public static final String ACTIVATE_USER = "ACTIVATE_USER";
     public static final String DEACTIVATE_USER = "DEACTIVATE_USER";
+    public static final String BULK_UPLOAD_USERS = "BULK_UPLOAD_USERS";
 
     public static final String CREATE_ORGANIZATION = "CREATE_ORGANIZATION";
     public static final String UPDATE_ORGANIZATION = "UPDATE_ORGANIZATION";

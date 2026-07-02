@@ -27,10 +27,11 @@ public class AuditController {
                 this.auditService.retrieveAuditLogs(page, size);
 
         return ResponseEntity.ok(
-                new ApiResponseDto<>(
-                        HttpStatus.OK.value(),
-                        "Audit logs retrieved successfully",
-                        response));
+                ApiResponseDto.<Page<AuditResponseDto>>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Audit logs retrieved successfully.")
+                        .data(response)
+                        .build());
     }
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
@@ -44,9 +45,10 @@ public class AuditController {
                 this.auditService.retrieveAuditLogsByUser(userId, page, size);
 
         return ResponseEntity.ok(
-                new ApiResponseDto<>(
-                        HttpStatus.OK.value(),
-                        "User audit logs retrieved successfully",
-                        response));
+                ApiResponseDto.<Page<AuditResponseDto>>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("User audit logs retrieved successfully.")
+                        .data(response)
+                        .build());
     }
 }
