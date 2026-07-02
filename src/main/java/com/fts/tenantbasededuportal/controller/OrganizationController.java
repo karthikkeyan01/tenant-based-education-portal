@@ -1,13 +1,17 @@
 package com.fts.tenantbasededuportal.controller;
 
+import com.fts.tenantbasededuportal.dto.ApiResponseDto;
 import com.fts.tenantbasededuportal.dto.organization.CreateOrganizationRequestDto;
-import com.fts.tenantbasededuportal.entity.Organization;
+import com.fts.tenantbasededuportal.dto.organization.CreateOrganizationResponseDto;
+import com.fts.tenantbasededuportal.dto.organization.OrganizationRequestDto;
+import com.fts.tenantbasededuportal.dto.organization.OrganizationResponseDto;
 import com.fts.tenantbasededuportal.service.OrganizationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("/organization")
@@ -16,54 +20,70 @@ public class OrganizationController {
 
     private final OrganizationService organizationService;
 
-    @PreAuthorize("hasAuthority('CREATE_ORGANIZATION')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PostMapping
-    public Organization createOrganization(
-            @RequestBody final CreateOrganizationRequestDto request
-    ) {
+    public ResponseEntity<ApiResponseDto<CreateOrganizationResponseDto>> createOrganization(
+            @RequestBody final CreateOrganizationRequestDto request) {
 
-        return this.organizationService.createOrganization(request);
+        final CreateOrganizationResponseDto response  =
+                this.organizationService.createOrganization(request);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(
+                        ApiResponseDto.<CreateOrganizationResponseDto>builder()
+                                .code(HttpStatus.CREATED.value())
+                                .message("Created organization with its admin.")
+                                .data(response)
+                                .build());
     }
 
-    @PreAuthorize("hasAuthority('VIEW_ORGANIZATIONS')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping
-    public List<Organization> fetchAllOrganizations(){
+    public ResponseEntity<ApiResponseDto<Page<OrganizationResponseDto>>>
+    retrieveAllOrganizations(@RequestParam(defaultValue = "0")final int page,
+                          @RequestParam(defaultValue = "10")final int size){
 
-        return this.organizationService.fetchAllOrganizations();
+        final Page<OrganizationResponseDto> response =
+                this.organizationService.retrieveAllOrganizations(page, size);
+
+        return ResponseEntity.ok(
+                ApiResponseDto.<Page<OrganizationResponseDto>>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Organizations retrieved successfully")
+                        .data(response)
+                        .build());
     }
 
-    @PreAuthorize("hasAuthority('VIEW_ORGANIZATIONS')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/{id}")
-    public Organization fetchOrganizationById(@PathVariable final String id) {
+    public ResponseEntity<ApiResponseDto<OrganizationResponseDto>>
+    retrieveOrganizationById(@PathVariable final String id) {
 
-        return this.organizationService.fetchOrganizationById(id);
+        final OrganizationResponseDto response =
+                this.organizationService.retrieveOrganizationById(id);
+
+        return ResponseEntity.ok(
+                ApiResponseDto.<OrganizationResponseDto>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Organization retrieved successfully")
+                        .data(response)
+                        .build());
     }
 
-    @PreAuthorize(("hasAuthority('UPDATE_ORGANIZATION')"))
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PutMapping("/{id}")
-    public Organization updateOrganization(
+    public ResponseEntity<ApiResponseDto<OrganizationResponseDto>> updateOrganization(
             @PathVariable final String id,
-            @RequestBody final Organization request) {
+            @RequestBody final OrganizationRequestDto request) {
 
-        return this.organizationService.updateOrganizationById(id,request);
-    }
+        final OrganizationResponseDto response =
+                this.organizationService.updateOrganizationById(id, request);
 
-    @PreAuthorize("hasAuthority('DELETE_ORGANIZATION')")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteOrganizationById
-            (@PathVariable final String id) {
-
-        this.organizationService.deleteOrganization(id);
-
-        return ResponseEntity.noContent().build();
-    }
-
-    @PreAuthorize("hasAuthority('RESTORE_ORGANIZATION')")
-    @PutMapping("/{id}/restore")
-    public ResponseEntity<Void> restoreOrganization(@PathVariable final String id){
-
-        this.organizationService.restoreOrganization(id);
-
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(
+                ApiResponseDto.<OrganizationResponseDto>builder()
+                        .code(HttpStatus.OK.value())
+                        .message("Updated organization successfully")
+                        .data(response)
+                        .build());
     }
 }

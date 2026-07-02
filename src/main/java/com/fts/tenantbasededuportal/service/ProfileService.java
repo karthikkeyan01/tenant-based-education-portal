@@ -34,18 +34,17 @@ public class ProfileService {
             organizationName = currentUser.getOrganization().getName();
         }
 
-        this.auditService.log(
-                currentUser,
-                "VIEW_PROFILE",
-                "USER",
-                currentUser.getId(),
-                "Viewed own profile");
+//        this.auditService.create(
+//                "VIEW_PROFILE",
+//                "USER",
+//                currentUser.getId(),
+//                "Viewed own profile");
 
         return ProfileResponseDto.builder()
                 .id(currentUser.getId())
                 .email(currentUser.getEmail())
                 .firstName(currentUser.getFirstName())
-                .secondName(currentUser.getSecondName())
+                .secondName(currentUser.getLastName())
                 .roleName(currentUser.getRole().getName())
                 .organizationName(organizationName)
                 .mfaEnabled(currentUser.getMfaEnabled())
@@ -63,7 +62,7 @@ public class ProfileService {
         }
 
         if (request.getSecondName() != null) {
-            currentUser.setSecondName(request.getSecondName());
+            currentUser.setLastName(request.getSecondName());
         }
 
         if (request.getMfaEnabled() != null) {
@@ -90,18 +89,18 @@ public class ProfileService {
             organizationName = currentUser.getOrganization().getName();
         }
 
-        this.auditService.log(
-                currentUser,
-                "UPDATE_PROFILE",
-                "USER",
-                currentUser.getId(),
-                details);
+//        this.auditService.log(
+//                currentUser,
+//                "UPDATE_PROFILE",
+//                "USER",
+//                currentUser.getId(),
+//                details);
 
         return ProfileResponseDto.builder()
                 .id(currentUser.getId())
                 .email(currentUser.getEmail())
                 .firstName(currentUser.getFirstName())
-                .secondName(currentUser.getSecondName())
+                .secondName(currentUser.getLastName())
                 .roleName(currentUser.getRole().getName())
                 .organizationName(organizationName)
                 .mfaEnabled(currentUser.getMfaEnabled())
@@ -139,11 +138,11 @@ public class ProfileService {
 
         this.userRepository.save(currentUser);
 
-        this.auditService.log(
-                currentUser,
-                "CHANGE_PASSWORD",
-                "USER",
-                currentUser.getId(),
-                "Changed password");
+//        this.auditService.log(
+//                currentUser,
+//                "CHANGE_PASSWORD",
+//                "USER",
+//                currentUser.getId(),
+//                "Changed password");
     }
 }

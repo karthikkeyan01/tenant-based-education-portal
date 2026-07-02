@@ -15,6 +15,7 @@ import com.fts.tenantbasededuportal.util.constants.AuditActionConstants;
 import com.fts.tenantbasededuportal.util.constants.EntityAffectedConstants;
 import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -53,6 +54,7 @@ public class AuthService {
     @Value("${app.base-url}")
     private String baseUrl;
 
+    @Transactional
     public void register(final RegisterRequestDto request){
 
         if (this.userRepository.existsByEmail(request.getEmail())){
@@ -157,6 +159,7 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
     public LoginResponseDto verifyOtp(final String email, final String otp){
 
         final User user = this.userRepository
@@ -224,6 +227,7 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
     public void resendOtp(final String email) {
 
         final User user = this.userRepository.findByEmailAndActiveTrue(
@@ -255,6 +259,7 @@ public class AuthService {
                         .build());
     }
 
+    @Transactional
     public void activateAccount(
             final String token, final String password) {
 
@@ -291,6 +296,7 @@ public class AuthService {
                         .build());
     }
 
+    @Transactional
     public void forgotPassword(final String email) {
 
         final User user = this.userRepository
@@ -326,6 +332,7 @@ public class AuthService {
                         .build());
     }
 
+    @Transactional
     public void resetPassword(final String token, final String password) {
 
         final User user = this.userRepository.findByResetPasswordToken(

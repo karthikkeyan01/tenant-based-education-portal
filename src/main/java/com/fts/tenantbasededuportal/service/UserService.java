@@ -64,7 +64,7 @@ public class UserService {
         this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
 
         final PageRequest pageRequest = PageRequest.of(
-                page, size,Sort.by("created_at").descending());
+                page, size,Sort.by("createdAt").descending().descending());
 
         final Page<User> users;
 
@@ -206,6 +206,7 @@ public class UserService {
 
         //checks if the user already exists with email.
         if (this.userRepository.existsByEmail(request.getEmail())){
+
             throw new BadRequestException("Email already exists.");
         }
 
