@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
 import com.fts.tenantbasededuportal.dto.profile.ChangePasswordRequestDto;
 import com.fts.tenantbasededuportal.dto.profile.ProfileResponseDto;
 import com.fts.tenantbasededuportal.dto.profile.UpdateProfileRequestDto;
@@ -7,6 +8,10 @@ import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
+import com.fts.tenantbasededuportal.util.constants.AuditActionConstants;
+import com.fts.tenantbasededuportal.util.constants.EntityAffectedConstants;
+import com.fts.tenantbasededuportal.util.constants.PermissionConstants;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,94 +28,114 @@ public class ProfileService {
 
     private final AuditService auditService;
 
+    private final PermissionService permissionService;
+
     //performs a GET request and fetches the profile of logged-in user.
-    public ProfileResponseDto fetchProfile() {
+    public ProfileResponseDto retrieveProfile() {
+
+        this.permissionService.requirePermission(PermissionConstants.VIEW_PROFILE);
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
         String organizationName = null;
 
         if (currentUser.getOrganization() != null) {
+
             organizationName = currentUser.getOrganization().getName();
         }
-
-//        this.auditService.create(
-//                "VIEW_PROFILE",
-//                "USER",
-//                currentUser.getId(),
-//                "Viewed own profile");
 
         return ProfileResponseDto.builder()
                 .id(currentUser.getId())
                 .email(currentUser.getEmail())
                 .firstName(currentUser.getFirstName())
-                .secondName(currentUser.getLastName())
+                .lastName(currentUser.getLastName())
                 .roleName(currentUser.getRole().getName())
                 .organizationName(organizationName)
                 .mfaEnabled(currentUser.getMfaEnabled())
+                .createdAt(currentUser.getCreatedAt())
                 .build();
     }
 
     //performs a PUT request and updates profile of logged-in user.
+    @Transactional
     public ProfileResponseDto updateProfile
             (final UpdateProfileRequestDto request) {
 
+        this.permissionService.requirePermission(PermissionConstants.UPDATE_PROFILE);
+
         final User currentUser = this.securityUtil.getCurrentUser();
 
-        if (request.getFirstName() != null) {
-            currentUser.setFirstName(request.getFirstName());
+        if (request.getFirstName() != null){
+
+            final String firstName = request.getFirstName().trim();
+
+            if (firstName.isBlank()){
+
+                throw new BadRequestException("First name cannot be blank");
+            }
+
+            currentUser.setFirstName(firstName);
         }
 
-        if (request.getSecondName() != null) {
-            currentUser.setLastName(request.getSecondName());
+        if (request.getLastName() != null) {
+
+            final String lastName = request.getLastName().trim();
+
+            if (lastName.isBlank()){
+
+                throw new BadRequestException("Last name cannot be blank");
+            }
         }
 
         if (request.getMfaEnabled() != null) {
+
             currentUser.setMfaEnabled(request.getMfaEnabled());
         }
 
-        String details = "Updated own profile";
+        String auditDetails = "Updated user profile";
 
         if (request.getMfaEnabled() != null) {
 
             if(request.getMfaEnabled()){
-                details +=  " and enabled MFA";
+                auditDetails +=  " and enabled MFA";
             }
             else {
-                details +=  " and disabled MFA";
+                auditDetails +=  " and disabled MFA";
             }
         }
 
-        this.userRepository.save(currentUser);
+        final User savedUser = this.userRepository.save(currentUser);
 
-        String organizationName = null;
-
-        if (currentUser.getOrganization() != null) {
-            organizationName = currentUser.getOrganization().getName();
-        }
-
-//        this.auditService.log(
-//                currentUser,
-//                "UPDATE_PROFILE",
-//                "USER",
-//                currentUser.getId(),
-//                details);
+        this.auditService.create(
+                AuditRequestDto.builder()
+                        .action(AuditActionConstants.UPDATE_PROFILE)
+                        .entityAffected(EntityAffectedConstants.USER)
+                        .entityId(currentUser.getId())
+                        .description(auditDetails)
+                        .build()
+        );
 
         return ProfileResponseDto.builder()
-                .id(currentUser.getId())
-                .email(currentUser.getEmail())
-                .firstName(currentUser.getFirstName())
-                .secondName(currentUser.getLastName())
-                .roleName(currentUser.getRole().getName())
-                .organizationName(organizationName)
-                .mfaEnabled(currentUser.getMfaEnabled())
+                .id(savedUser.getId())
+                .email(savedUser.getEmail())
+                .firstName(savedUser.getFirstName())
+                .lastName(savedUser.getLastName())
+                .roleName(savedUser.getRole().getName())
+                .organizationName(savedUser.getOrganization() != null
+                        ? savedUser.getOrganization().getName()
+                        : null)
+                .mfaEnabled(savedUser.getMfaEnabled())
+                .createdAt(savedUser.getCreatedAt())
                 .build();
     }
 
     //performs a PUT request and changes the password of logged-in user.
     //note needs old password and new password (must match)
+    @Transactional
     public void changeProfilePassword
             (final ChangePasswordRequestDto request) {
+
+        this.permissionService.requirePermission(PermissionConstants.CHANGE_PASSWORD);
 
         final User currentUser = this.securityUtil.getCurrentUser();
 
@@ -138,11 +163,12 @@ public class ProfileService {
 
         this.userRepository.save(currentUser);
 
-//        this.auditService.log(
-//                currentUser,
-//                "CHANGE_PASSWORD",
-//                "USER",
-//                currentUser.getId(),
-//                "Changed password");
+        this.auditService.create(
+                AuditRequestDto.builder()
+                        .action(AuditActionConstants.CHANGE_PASSWORD)
+                        .entityAffected(EntityAffectedConstants.USER)
+                        .entityId(currentUser.getId())
+                        .description("User changed their password")
+                        .build());
     }
 }

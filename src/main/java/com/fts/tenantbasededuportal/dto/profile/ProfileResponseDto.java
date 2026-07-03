@@ -2,6 +2,8 @@ package com.fts.tenantbasededuportal.dto.profile;
 
 import lombok.*;
 
+import java.time.Instant;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,11 +17,13 @@ public class ProfileResponseDto {
 
     private String firstName;
 
-    private String secondName;
+    private String lastName;
 
     private String roleName;
 
     private String organizationName;
 
     private Boolean mfaEnabled;
+
+    private Instant createdAt;
 }

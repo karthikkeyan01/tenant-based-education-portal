@@ -11,7 +11,7 @@ public class UpdateProfileRequestDto {
 
     private String firstName;
 
-    private String secondName;
+    private String lastName;
 
     private Boolean mfaEnabled;
 }
