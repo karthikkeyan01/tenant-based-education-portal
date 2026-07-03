@@ -37,7 +37,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(final HttpSecurity http) {
+    public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
 
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize ->
@@ -73,7 +73,7 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(
-            final AuthenticationConfiguration configuration) {
+            final AuthenticationConfiguration configuration) throws Exception{
 
         return configuration.getAuthenticationManager();
     }
