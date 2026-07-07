@@ -9,6 +9,7 @@ import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
+import com.fts.tenantbasededuportal.exception.ConflictException;
 import com.fts.tenantbasededuportal.exception.ResourceNotFoundException;
 import com.fts.tenantbasededuportal.exception.UnauthorizedException;
 import com.fts.tenantbasededuportal.repository.OrganizationRepository;
@@ -16,7 +17,7 @@ import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.util.constants.*;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -71,24 +72,24 @@ public class OrganizationService {
         if (this.organizationRepository.existsByName(
                 request.getOrganizationName())) {
 
-            throw new BadRequestException("Organization already exists.");
+            throw new ConflictException("Organization already exists.");
         }
 
         if (this.userRepository.existsByEmail(
                 request.getOrgAdminEmail())){
 
-            throw new BadRequestException("User already exists.");
+            throw new ConflictException("User already exists.");
         }
 
         final Role orgAdminRole =
                 this.roleRepository.findByName(RoleConstants.ORG_ADMIN)
                         .orElseThrow(() ->
-                                new ResourceNotFoundException("Role Not Found."));
+                                new IllegalStateException("Role Not Found."));
 
         final String temporaryPassword = this.passwordGeneratorService.generatePassword(
                         ApplicationConstants.GENERATED_PASSWORD_LENGTH);
 
-        final String encodedPassword = passwordEncoder.encode(temporaryPassword);
+        final String encodedPassword = this.passwordEncoder.encode(temporaryPassword);
 
         final String activationToken = this.tokenGeneratorService.generateToken();
 
@@ -152,6 +153,7 @@ public class OrganizationService {
 
     //performs a GET operation and fetches all organizations.
     //can be performed only by super admin.
+    @Transactional(readOnly = true)
     public Page<OrganizationResponseDto> retrieveAllOrganizations(
             final int page, final int size) {
 
@@ -180,6 +182,7 @@ public class OrganizationService {
 
     //performs a GET operation and fetches organization based on org id.
     //can be accessed by super admin.
+    @Transactional(readOnly = true)
     public OrganizationResponseDto retrieveOrganizationById(final String id) {
 
         if (!this.securityUtil.isSuperAdmin()){
@@ -205,6 +208,7 @@ public class OrganizationService {
 
     //performs a PUT operation and updates organization.
     //can be only performed by super admin.
+    @Transactional
     public OrganizationResponseDto updateOrganizationById(
             final String id, final OrganizationRequestDto request) {
 

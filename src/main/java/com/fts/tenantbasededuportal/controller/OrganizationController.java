@@ -6,16 +6,21 @@ import com.fts.tenantbasededuportal.dto.organization.CreateOrganizationResponseD
 import com.fts.tenantbasededuportal.dto.organization.OrganizationRequestDto;
 import com.fts.tenantbasededuportal.dto.organization.OrganizationResponseDto;
 import com.fts.tenantbasededuportal.service.OrganizationService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/organization")
 @RequiredArgsConstructor
+@Validated
 public class OrganizationController {
 
     private final OrganizationService organizationService;
@@ -23,7 +28,7 @@ public class OrganizationController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PostMapping
     public ResponseEntity<ApiResponseDto<CreateOrganizationResponseDto>> createOrganization(
-            @RequestBody final CreateOrganizationRequestDto request) {
+            @Valid @RequestBody final CreateOrganizationRequestDto request) {
 
         final CreateOrganizationResponseDto response  =
                 this.organizationService.createOrganization(request);
@@ -40,8 +45,9 @@ public class OrganizationController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping
     public ResponseEntity<ApiResponseDto<Page<OrganizationResponseDto>>>
-    retrieveAllOrganizations(@RequestParam(defaultValue = "0")final int page,
-                          @RequestParam(defaultValue = "10")final int size){
+    retrieveAllOrganizations(
+            @Min(0) @RequestParam(defaultValue = "0")final int page,
+            @Min(1) @Max(100) @RequestParam(defaultValue = "10")final int size){
 
         final Page<OrganizationResponseDto> response =
                 this.organizationService.retrieveAllOrganizations(page, size);
@@ -74,7 +80,7 @@ public class OrganizationController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponseDto<OrganizationResponseDto>> updateOrganization(
             @PathVariable final String id,
-            @RequestBody final OrganizationRequestDto request) {
+            @Valid @RequestBody final OrganizationRequestDto request) {
 
         final OrganizationResponseDto response =
                 this.organizationService.updateOrganizationById(id, request);

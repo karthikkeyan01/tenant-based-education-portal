@@ -6,9 +6,11 @@ import com.fts.tenantbasededuportal.exception.ResourceNotFoundException;
 import com.fts.tenantbasededuportal.exception.UnauthorizedException;
 import com.fts.tenantbasededuportal.repository.OrganizationRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
+import com.fts.tenantbasededuportal.security.CustomUserDetailsService;
 import com.fts.tenantbasededuportal.security.UserPrincipal;
 import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -20,6 +22,26 @@ public class SecurityUtil {
     private final UserRepository userRepository;
 
     private final OrganizationRepository organizationRepository;
+
+    private final CustomUserDetailsService customUserDetailsService;
+
+    public void setAuthentication(final User user) {
+
+        final UserPrincipal principal =
+                this.customUserDetailsService.loadUserByUsername(user.getEmail());
+
+        final Authentication authentication =
+                new UsernamePasswordAuthenticationToken(
+                        principal,null,principal.getAuthorities());
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+
+    public void clearAuthentication() {
+
+        SecurityContextHolder.clearContext();
+    }
+
 
     private UserPrincipal getPrincipal() {
 
@@ -114,12 +136,6 @@ public class SecurityUtil {
     public boolean isCurrentUser(final String userId) {
 
         return userId != null && this.getCurrentUserId().equals(userId);
-    }
-
-
-    public boolean hasOrganization() {
-
-        return this.getCurrentOrganizationId() != null;
     }
 
     public boolean isSameOrganization(final String organizationId) {

@@ -1,11 +1,11 @@
 package com.fts.tenantbasededuportal.util.constants;
 
-public class ApplicationConstants {
+public final class ApplicationConstants {
 
     private ApplicationConstants() {}
 
     public static final String SUPER_ADMIN_EMAIL =
-            "superadmin@eduportal.com";
+            "superadmin.0105@gmail.com";
 
     public static final int OTP_EXPIRY_MINUTES = 5;
 

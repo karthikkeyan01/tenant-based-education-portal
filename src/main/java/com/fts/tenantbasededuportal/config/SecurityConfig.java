@@ -17,7 +17,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.expression.WebExpressionAuthorizationManager;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
@@ -31,24 +30,22 @@ public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
 
     @Bean
-    public PasswordEncoder passwordEncoder(){
+    public PasswordEncoder passwordEncoder() {
 
         return new BCryptPasswordEncoder(12);
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(final HttpSecurity http) {
 
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize ->
                         authorize.requestMatchers("/auth/login",
-                                "/auth/register","/auth/resend-otp",
-                                        "/auth/verify-mfa","/auth/activate-account",
-                                        "/auth/forgot-password","/auth/reset-password"
-                                        ,"/error").permitAll()
-                                .requestMatchers("/actuator/**").access(
-                                        new WebExpressionAuthorizationManager(
-                                        "hasRole('SUPER_ADMIN') and hasAuthority('MANAGE_SYSTEM')"))
+                                        "/auth/register", "/auth/resend-otp",
+                                        "/auth/verify-otp", "/auth/activate-account",
+                                        "/auth/forgot-password", "/auth/reset-password",
+                                        "/auth/logout", "/error").permitAll()
+                                .requestMatchers("/actuator/**").hasRole("SUPER_ADMIN")
                                 .anyRequest().authenticated())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
@@ -63,7 +60,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider(){
+    public AuthenticationProvider authenticationProvider() {
 
         final DaoAuthenticationProvider provider = new DaoAuthenticationProvider(this.customUserDetailsService);
         provider.setPasswordEncoder(this.passwordEncoder());
@@ -73,7 +70,7 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(
-            final AuthenticationConfiguration configuration) throws Exception{
+            final AuthenticationConfiguration configuration) {
 
         return configuration.getAuthenticationManager();
     }

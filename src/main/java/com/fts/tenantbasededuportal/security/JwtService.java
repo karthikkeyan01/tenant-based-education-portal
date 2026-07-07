@@ -94,8 +94,8 @@ public class JwtService {
 
     public boolean validateToken(final String token, final UserPrincipal principal) {
 
-        return this.extractUserId(token).equals(principal.getId())
-                && !this.isTokenExpired(token);
+        return !this.isTokenExpired(token)
+        && this.extractUserId(token).equals(principal.getId());
     }
 
     private boolean isTokenExpired(final String token) {

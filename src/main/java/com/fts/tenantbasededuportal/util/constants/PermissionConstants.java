@@ -1,6 +1,6 @@
 package com.fts.tenantbasededuportal.util.constants;
 
-public class PermissionConstants {
+public final class PermissionConstants {
 
     private PermissionConstants() {}
 

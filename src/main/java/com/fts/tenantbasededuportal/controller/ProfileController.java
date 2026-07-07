@@ -5,15 +5,18 @@ import com.fts.tenantbasededuportal.dto.profile.ChangePasswordRequestDto;
 import com.fts.tenantbasededuportal.dto.profile.ProfileResponseDto;
 import com.fts.tenantbasededuportal.dto.profile.UpdateProfileRequestDto;
 import com.fts.tenantbasededuportal.service.ProfileService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/profile")
 @RequiredArgsConstructor
+@Validated
 public class ProfileController {
 
     private final ProfileService profileService;
@@ -27,7 +30,7 @@ public class ProfileController {
         return ResponseEntity.ok(
                 ApiResponseDto.<ProfileResponseDto>builder()
                         .code(HttpStatus.OK.value())
-                        .message("Profile retrieved successfully")
+                        .message("Profile retrieved successfully.")
                         .data(response)
                         .build());
     }
@@ -35,7 +38,7 @@ public class ProfileController {
     @PreAuthorize("isAuthenticated()")
     @PutMapping
     public ResponseEntity<ApiResponseDto<ProfileResponseDto>>
-    updateProfile(@RequestBody final UpdateProfileRequestDto request) {
+    updateProfile(@Valid @RequestBody final UpdateProfileRequestDto request) {
 
         final ProfileResponseDto response =
                 this.profileService.updateProfile(request);
@@ -43,22 +46,22 @@ public class ProfileController {
         return ResponseEntity.ok(
                 ApiResponseDto.<ProfileResponseDto>builder()
                         .code(HttpStatus.OK.value())
-                        .message("Profile updated successfully")
+                        .message("Profile updated successfully.")
                         .data(response)
                         .build());
     }
 
     @PreAuthorize("isAuthenticated()")
-    @PutMapping("/password")
+    @PutMapping("/change-password")
     public ResponseEntity<ApiResponseDto<Void>>
-    changePassword(@RequestBody final ChangePasswordRequestDto request) {
+    changePassword(@Valid @RequestBody final ChangePasswordRequestDto request) {
 
         this.profileService.changeProfilePassword(request);
 
         return ResponseEntity.ok(
                 ApiResponseDto.<Void>builder()
                         .code(HttpStatus.OK.value())
-                        .message("Password changed successfully")
+                        .message("Password changed successfully.")
                         .build());
     }
 }

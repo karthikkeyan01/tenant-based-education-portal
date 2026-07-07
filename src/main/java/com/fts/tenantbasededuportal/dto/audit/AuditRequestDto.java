@@ -1,6 +1,5 @@
 package com.fts.tenantbasededuportal.dto.audit;
 
-import com.fts.tenantbasededuportal.entity.User;
 import lombok.Builder;
 import lombok.Getter;
 

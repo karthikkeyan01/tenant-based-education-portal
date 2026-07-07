@@ -39,6 +39,7 @@ public class User extends BaseEntity{
     private Organization organization;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean active = false;
 
     @JsonIgnore
@@ -54,6 +55,7 @@ public class User extends BaseEntity{
     private Instant resetPasswordTokenExpiresAt;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean mfaEnabled = false;
 
     @JsonIgnore

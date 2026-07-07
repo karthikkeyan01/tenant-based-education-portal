@@ -5,6 +5,7 @@ import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
+import com.fts.tenantbasededuportal.exception.ConflictException;
 import com.fts.tenantbasededuportal.util.constants.*;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
 import com.fts.tenantbasededuportal.exception.ResourceNotFoundException;
@@ -13,13 +14,13 @@ import com.fts.tenantbasededuportal.repository.OrganizationRepository;
 import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
@@ -57,6 +58,8 @@ public class UserService {
     @Value("${app.base-url}")
     private String baseUrl;
 
+    private static final String EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
+
     //Performs a GET operation and fetches all users from the DB.
     public Page<UserResponseDto> retrieveUsers(
             final int page, final int size) {
@@ -64,7 +67,7 @@ public class UserService {
         this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
 
         final PageRequest pageRequest = PageRequest.of(
-                page, size,Sort.by("createdAt").descending().descending());
+                page, size,Sort.by("createdAt").descending());
 
         final Page<User> users;
 
@@ -207,12 +210,12 @@ public class UserService {
         //checks if the user already exists with email.
         if (this.userRepository.existsByEmail(request.getEmail())){
 
-            throw new BadRequestException("Email already exists.");
+            throw new ConflictException("Email already exists.");
         }
 
         final Role role = this.roleRepository.findByName(
                 RoleConstants.USER).orElseThrow(
-                ()-> new ResourceNotFoundException("Role not found."));
+                ()-> new IllegalStateException("Role not found."));
 
         final Organization organization = this.securityUtil.getCurrentOrganization();
 
@@ -439,6 +442,11 @@ public class UserService {
     public BulkUploadResponseDto bulkUploadUsers(
             final MultipartFile file, final String organizationId){
 
+        if (file.isEmpty()) {
+
+            throw new BadRequestException("File is empty.");
+        }
+
         //checks if current user is super admin or org admin.
         if (!this.securityUtil.isSuperAdmin() &&
                 !this.securityUtil.isOrgAdmin()){
@@ -476,12 +484,12 @@ public class UserService {
                     "invalid file");
         }
 
-        if (fileName.endsWith(".csv")){
+        if (fileName.toLowerCase().endsWith(".csv")){
 
             return this.uploadCsv(file, targetOrganization);
         }
 
-        if (fileName.endsWith(".xlsx")){
+        if (fileName.toLowerCase().endsWith(".xlsx")){
 
             return this.uploadExcel(file, targetOrganization);
         }
@@ -497,7 +505,7 @@ public class UserService {
              final Organization targetOrganization ) {
 
         final Role userRole = this.roleRepository.findByName(RoleConstants.USER)
-                .orElseThrow(()-> new ResourceNotFoundException("Role not found."));
+                .orElseThrow(()-> new IllegalStateException("Role not found."));
 
         //sets variables needed for response dto.
         int total = 0;
@@ -511,13 +519,16 @@ public class UserService {
 
             String line;
 
-            final String headerLine = br.readLine();
+            final String headerLineBom = br.readLine();
 
             //makes sure header file is present.
-            if (headerLine == null) {
+            if (headerLineBom == null) {
 
                 throw new BadRequestException("CSV file is empty.");
             }
+
+            final String headerLine = headerLineBom.replace(
+                    "\uFEFF", "").trim();
 
             final String header = headerLine.trim();
 
@@ -574,6 +585,13 @@ public class UserService {
                 if (email.isBlank()) {
 
                     skipped++;
+                    continue;
+                }
+
+                if (!email.matches(EMAIL_REGEX)) {
+
+                    skipped++;
+                    failedEmails.add(email);
                     continue;
                 }
 
@@ -666,7 +684,7 @@ public class UserService {
             (final MultipartFile file, final Organization targetOrganization) {
 
         final Role userRole = this.roleRepository.findByName(RoleConstants.USER)
-                .orElseThrow(()-> new ResourceNotFoundException("Role not found."));
+                .orElseThrow(()-> new IllegalStateException("Role not found."));
 
         int total = 0;
         int uploaded = 0;
@@ -778,6 +796,13 @@ public class UserService {
                     continue;
                 }
 
+                if (!email.matches(EMAIL_REGEX)) {
+
+                    skipped++;
+                    failedEmails.add(email);
+                    continue;
+                }
+
                 if (threeColumnFormat && (firstName.isBlank()
                         || lastName.isBlank())){
 
@@ -814,6 +839,8 @@ public class UserService {
 
                 final User savedUser = this.userRepository.save(user);
 
+                uploaded++;
+
                 final String activationLink =
                         this.baseUrl
                                 + "/auth/activate-account?token="
@@ -830,9 +857,6 @@ public class UserService {
 
                     failedEmails.add(savedUser.getEmail());
                 }
-
-
-                uploaded++;
             }
 
             this.auditService.create(
@@ -904,7 +928,7 @@ public class UserService {
         }
 
         if (this.securityUtil.isSuperAdmin()
-                && targetUser.getOrganization() != null) {
+                && RoleConstants.USER.equals(targetUser.getRole().getName())) {
 
             throw new BadRequestException(
                     "Organization users must be managed by their organization administrator.");

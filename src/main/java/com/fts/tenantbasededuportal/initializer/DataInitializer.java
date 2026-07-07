@@ -4,6 +4,7 @@ import com.fts.tenantbasededuportal.entity.Permission;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.RolePermission;
 import com.fts.tenantbasededuportal.entity.User;
+import com.fts.tenantbasededuportal.exception.EmailDeliveryException;
 import com.fts.tenantbasededuportal.repository.PermissionRepository;
 import com.fts.tenantbasededuportal.repository.RolePermissionRepository;
 import com.fts.tenantbasededuportal.repository.RoleRepository;
@@ -24,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -200,7 +200,9 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         final  Role superAdminRole = this.roleRepository
-                .findByName(RoleConstants.SUPER_ADMIN).orElseThrow();
+                .findByName(RoleConstants.SUPER_ADMIN).orElseThrow(() ->
+                        new IllegalStateException(
+                                "Super_Admin role not found."));
 
         final String generatedPassword = this.passwordGeneratorService
                 .generatePassword(ApplicationConstants.GENERATED_PASSWORD_LENGTH);
@@ -231,7 +233,15 @@ public class DataInitializer implements CommandLineRunner {
                         + "/auth/reset-password?token="
                         + resetPasswordToken;
 
-        this.emailService.sendSuperAdminCredentialsMail(savedUser.getEmail(),
-                generatedPassword, resetPasswordLink);
+        try{
+
+            this.emailService.sendSuperAdminCredentialsMail(savedUser.getEmail(),
+                    generatedPassword, resetPasswordLink);
+        }
+        catch(final Exception e){
+
+            throw new EmailDeliveryException("Failed to send SuperAdmin Credentials email.");
+        }
+
     }
 }

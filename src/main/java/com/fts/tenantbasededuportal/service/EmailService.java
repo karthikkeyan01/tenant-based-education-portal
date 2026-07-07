@@ -1,6 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
-import com.fts.tenantbasededuportal.exception.BadRequestException;
+import com.fts.tenantbasededuportal.exception.EmailDeliveryException;
 import com.fts.tenantbasededuportal.util.constants.ApplicationConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +39,8 @@ public class EmailService {
         }
         catch (Exception e){
 
-            throw new BadRequestException("Failed to send verification email.");
+            throw new EmailDeliveryException(
+                    "Failed to send verification email.",e);
         }
     }
 
@@ -66,7 +67,8 @@ public class EmailService {
         }
         catch (final Exception exception){
 
-            throw new BadRequestException("Failed to send activation email.");
+            throw new EmailDeliveryException(
+                    "Failed to send activation email.",exception);
         }
     }
 
@@ -94,7 +96,8 @@ public class EmailService {
         }
         catch (final Exception exception){
 
-            throw new BadRequestException("Failed to send forgot password email.");
+            throw new EmailDeliveryException(
+                    "Failed to send forgot password email.", exception);
         }
     }
 
@@ -122,7 +125,8 @@ public class EmailService {
         }
         catch (final Exception exception){
 
-            throw new BadRequestException("Failed to send SuperAdmin Credentials email.");
+            throw new EmailDeliveryException(
+                    "Failed to send SuperAdmin Credentials email.", exception);
         }
     }
 }

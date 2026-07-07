@@ -2,10 +2,10 @@ package com.fts.tenantbasededuportal.service;
 
 import com.fts.tenantbasededuportal.entity.RolePermission;
 import com.fts.tenantbasededuportal.entity.User;
-import com.fts.tenantbasededuportal.exception.UnauthorizedException;
 import com.fts.tenantbasededuportal.repository.RolePermissionRepository;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -24,8 +24,8 @@ public class PermissionService {
 
         if(!this.hasPermission(currentUser, permission)){
 
-            throw new UnauthorizedException
-                    ("You do not have permission to perform this action.");
+            throw new AccessDeniedException(
+                    "You do not have permission to perform this action.");
         }
     }
 

@@ -24,13 +24,13 @@ public class CustomUserDetailsService
 
         if (!user.getActive()) {
 
-            throw new UsernameNotFoundException("User account is inactive");
+            throw new AccountInactiveException("User account is inactive");
         }
 
         if (user.getOrganization() != null
                 && !user.getOrganization().getActive()){
 
-            throw new UsernameNotFoundException("Organization is Inactive");
+            throw new AccountInactiveException("Organization is Inactive");
         }
 
         return new UserPrincipal(

@@ -4,6 +4,9 @@ import com.fts.tenantbasededuportal.dto.ApiResponseDto;
 import com.fts.tenantbasededuportal.dto.auth.*;
 import com.fts.tenantbasededuportal.service.AuthService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,8 +53,8 @@ public class AuthController {
 
     @PostMapping("/verify-otp")
     public ResponseEntity<ApiResponseDto<LoginResponseDto>> verifyOtp(
-            @RequestParam final String email,
-            @RequestParam final String otp){
+            @RequestParam @Email final String email,
+            @RequestParam @NotBlank final String otp){
 
         final LoginResponseDto response = this.authService.verifyOtp(email, otp);
 
@@ -65,7 +68,7 @@ public class AuthController {
 
     @PostMapping("/resend-otp")
     public ResponseEntity<ApiResponseDto<Void>> resendOtp(
-            @RequestParam final String email) {
+            @RequestParam @Email final String email) {
 
         this.authService.resendOtp(email);
 
@@ -78,8 +81,8 @@ public class AuthController {
 
     @PostMapping("/activate-account")
     public ResponseEntity<ApiResponseDto<Void>> activateAccount(
-            @RequestParam final String token,
-            @RequestParam final String password) {
+            @RequestParam @NotBlank final String token,
+            @RequestParam @NotBlank @Size(min = 8) final String password) {
 
         this.authService.activateAccount(token, password);
 
@@ -92,7 +95,7 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponseDto<Void>> forgotPassword(
-            @RequestParam final String email
+            @RequestParam @Email final String email
     ) {
 
         this.authService.forgotPassword(email);
@@ -106,8 +109,8 @@ public class AuthController {
 
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponseDto<Void>> resetPassword(
-            @RequestParam final String token,
-            @RequestParam final String password) {
+            @RequestParam @NotBlank final String token,
+            @RequestParam @NotBlank @Size(min = 8) final String password) {
 
         this.authService.resetPassword(token, password);
 

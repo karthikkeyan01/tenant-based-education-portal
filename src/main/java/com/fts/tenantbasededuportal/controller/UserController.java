@@ -4,26 +4,30 @@ import com.fts.tenantbasededuportal.dto.ApiResponseDto;
 import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.service.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
+@Validated
 public class UserController {
 
     private final UserService userService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ORG_ADMIN')")
-    public ResponseEntity<ApiResponseDto<Page<UserResponseDto>>> fetchUsers(
-            @RequestParam(defaultValue = "0") final int page,
-            @RequestParam(defaultValue = "10") final int size) {
+    public ResponseEntity<ApiResponseDto<Page<UserResponseDto>>> retrieveUsers(
+            @Min(0) @RequestParam(defaultValue = "0") final int page,
+            @Min(1) @Max(100) @RequestParam(defaultValue = "10") final int size) {
 
         final Page<UserResponseDto> response =
                 this.userService.retrieveUsers(page, size);
@@ -56,8 +60,8 @@ public class UserController {
     public ResponseEntity<ApiResponseDto<Page<UserResponseDto>>>
     retrieveUsersByOrganization(
             @PathVariable final String organizationId,
-            @RequestParam(defaultValue = "0") final int page,
-            @RequestParam(defaultValue = "10")  final int size) {
+            @Min(0) @RequestParam(defaultValue = "0") final int page,
+            @Min(1) @Max(100) @RequestParam(defaultValue = "10")  final int size) {
 
         final Page<UserResponseDto> response =
                 this.userService.retrieveUsersByOrganization(organizationId,

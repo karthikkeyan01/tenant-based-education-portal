@@ -5,6 +5,7 @@ import com.fts.tenantbasededuportal.dto.auth.*;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
+import com.fts.tenantbasededuportal.exception.ConflictException;
 import com.fts.tenantbasededuportal.exception.UnauthorizedException;
 import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
@@ -15,12 +16,13 @@ import com.fts.tenantbasededuportal.util.constants.AuditActionConstants;
 import com.fts.tenantbasededuportal.util.constants.EntityAffectedConstants;
 import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -58,11 +60,12 @@ public class AuthService {
     public void register(final RegisterRequestDto request){
 
         if (this.userRepository.existsByEmail(request.getEmail())){
-            throw new BadRequestException("Email already exists");
+
+            throw new ConflictException("Email already exists");
         }
 
         final Role userRole = this.roleRepository.findByName(RoleConstants.USER)
-                .orElseThrow(() -> new BadRequestException(
+                .orElseThrow(() -> new IllegalStateException(
                         "User role not found"));
 
         final User user = User.builder()
@@ -81,30 +84,40 @@ public class AuthService {
                 .lastLoginAt(null)
                 .build();
 
-        this.userRepository.save(user);
+        final User savedUser = this.userRepository.save(user);
 
-        this.auditService.create(
-                AuditRequestDto.builder()
-                        .action(AuditActionConstants.REGISTER)
-                        .entityAffected(EntityAffectedConstants.AUTH)
-                        .entityId(user.getId())
-                        .description("Individual user registered.")
-                        .build());
+        this.securityUtil.setAuthentication(savedUser);
+
+        try{
+            this.auditService.create(
+                    AuditRequestDto.builder()
+                            .action(AuditActionConstants.REGISTER)
+                            .entityAffected(EntityAffectedConstants.AUTH)
+                            .entityId(savedUser.getId())
+                            .description("Individual user registered.")
+                            .build());
+        }
+        finally {
+
+            this.securityUtil.clearAuthentication();
+        }
     }
 
     public LoginResponseDto login(final LoginRequestDto request){
 
         final Authentication authentication = this.authenticationManager
-                .authenticate(new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()));
+                    .authenticate(new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()));
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
 
         final UserPrincipal userPrincipal =
                 (UserPrincipal) authentication.getPrincipal();
 
         final User user = this.userRepository.findByIdAndActiveTrue(
                         userPrincipal.getId())
-                .orElseThrow(() -> new BadRequestException(
+                .orElseThrow(() -> new IllegalStateException(
                         "User not found."));
 
         if (Boolean.TRUE.equals(user.getMfaEnabled())){
@@ -121,42 +134,56 @@ public class AuthService {
 
             this.emailService.sendOtpMail(user.getEmail(), otp);
 
-            this.auditService.create(
-                    AuditRequestDto.builder()
-                            .action(AuditActionConstants.LOGIN)
-                            .entityAffected(EntityAffectedConstants.AUTH)
-                            .entityId(user.getId())
-                            .description("OTP sent for login.")
-                            .build());
+            try{
 
-            return LoginResponseDto.builder()
-                    .email(user.getEmail())
-                    .role(userPrincipal.getRole())
-                    .mfaRequired(true)
-                    .message("OTP sent to your email. Please verify MFA.")
-                    .build();
+                this.auditService.create(
+                        AuditRequestDto.builder()
+                                .action(AuditActionConstants.LOGIN)
+                                .entityAffected(EntityAffectedConstants.AUTH)
+                                .entityId(user.getId())
+                                .description("OTP sent for login.")
+                                .build());
+
+                return LoginResponseDto.builder()
+                        .email(user.getEmail())
+                        .role(userPrincipal.getRole())
+                        .mfaRequired(true)
+                        .message("OTP sent to your email. Please verify MFA.")
+                        .build();
+            }
+            finally {
+
+                this.securityUtil.clearAuthentication();
+            }
         }
-
-        final String token = this.jwtService.generateToken(userPrincipal);
 
         user.setLastLoginAt(Instant.now());
 
         this.userRepository.save(user);
 
-        this.auditService.create(AuditRequestDto.builder()
-                        .action(AuditActionConstants.LOGIN)
-                        .entityAffected(EntityAffectedConstants.AUTH)
-                        .entityId(user.getId())
-                        .description("User logged in.")
-                        .build());
+        try{
 
-        return LoginResponseDto.builder()
-                .accessToken(token)
-                .email(userPrincipal.getUsername())
-                .role(userPrincipal.getRole())
-                .mfaRequired(false)
-                .message("Login successful.")
-                .build();
+            this.auditService.create(AuditRequestDto.builder()
+                    .action(AuditActionConstants.LOGIN)
+                    .entityAffected(EntityAffectedConstants.AUTH)
+                    .entityId(user.getId())
+                    .description("User logged in.")
+                    .build());
+
+            final String token = this.jwtService.generateToken(userPrincipal);
+
+            return LoginResponseDto.builder()
+                    .accessToken(token)
+                    .email(userPrincipal.getUsername())
+                    .role(userPrincipal.getRole())
+                    .mfaRequired(false)
+                    .message("Login successful.")
+                    .build();
+        }
+        finally {
+
+            this.securityUtil.clearAuthentication();
+        }
     }
 
     @Transactional
@@ -197,42 +224,55 @@ public class AuthService {
         user.setOtpExpiresAt(null);
         user.setLastLoginAt(Instant.now());
 
-        this.userRepository.save(user);
+        final User savedUser = this.userRepository.save(user);
 
-        final UserPrincipal principal = new UserPrincipal(user.getId(),
-                user.getEmail(),
-                user.getPassword(),
-                user.getOrganization() != null
-                        ? user.getOrganization().getId()
+        final UserPrincipal principal = new UserPrincipal(savedUser.getId(),
+                savedUser.getEmail(),
+                savedUser.getPassword(),
+                savedUser.getOrganization() != null
+                        ? savedUser.getOrganization().getId()
                         : null,
-                user.getRole().getName(),
-                user.getActive());
+                savedUser.getRole().getName(),
+                savedUser.getActive());
 
-        final String token = this.jwtService.generateToken(principal);
+        this.securityUtil.setAuthentication(savedUser);
 
-        this.auditService.create(
-                AuditRequestDto.builder()
-                        .action(AuditActionConstants.LOGIN)
-                        .entityAffected(EntityAffectedConstants.AUTH)
-                        .entityId(user.getId())
-                        .description("User logged in using MFA.")
-                        .build());
+        try{
 
-        return LoginResponseDto.builder()
-                .accessToken(token)
-                .email(user.getEmail())
-                .role(user.getRole().getName())
-                .mfaRequired(false)
-                .message("MFA verification successful.")
-                .build();
+            this.auditService.create(
+                    AuditRequestDto.builder()
+                            .action(AuditActionConstants.LOGIN)
+                            .entityAffected(EntityAffectedConstants.AUTH)
+                            .entityId(savedUser.getId())
+                            .description("User logged in using MFA.")
+                            .build());
+
+            final String token = this.jwtService.generateToken(principal);
+
+            return LoginResponseDto.builder()
+                    .accessToken(token)
+                    .email(savedUser.getEmail())
+                    .role(savedUser.getRole().getName())
+                    .mfaRequired(false)
+                    .message("MFA verification successful.")
+                    .build();
+        }
+        finally {
+
+            this.securityUtil.clearAuthentication();
+        }
     }
 
     @Transactional
     public void resendOtp(final String email) {
 
         final User user = this.userRepository.findByEmailAndActiveTrue(
-                email).orElseThrow(() ->
-                new UnauthorizedException("Invalid email."));
+                email).orElse(null);
+
+        if (user == null) {
+
+            return;
+        }
 
         if (!user.getMfaEnabled()) {
 
@@ -250,13 +290,22 @@ public class AuthService {
 
         this.emailService.sendOtpMail(user.getEmail(), otp);
 
-        this.auditService.create(
-                AuditRequestDto.builder()
-                        .action(AuditActionConstants.RESEND_OTP)
-                        .entityAffected(EntityAffectedConstants.AUTH)
-                        .entityId(user.getId())
-                        .description("OTP resent for MFA verification.")
-                        .build());
+        this.securityUtil.setAuthentication(user);
+
+        try{
+
+            this.auditService.create(
+                    AuditRequestDto.builder()
+                            .action(AuditActionConstants.RESEND_OTP)
+                            .entityAffected(EntityAffectedConstants.AUTH)
+                            .entityId(user.getId())
+                            .description("OTP resent for MFA verification.")
+                            .build());
+        }
+        finally {
+
+            this.securityUtil.clearAuthentication();
+        }
     }
 
     @Transactional
@@ -285,15 +334,24 @@ public class AuthService {
         user.setActivationToken(null);
         user.setActivationTokenExpiresAt(null);
 
-        this.userRepository.save(user);
+        final User savedUser = this.userRepository.save(user);
 
-        this.auditService.create(
-                AuditRequestDto.builder()
-                        .action(AuditActionConstants.ACTIVATE_ACCOUNT)
-                        .entityAffected(EntityAffectedConstants.AUTH)
-                        .entityId(user.getId())
-                        .description("User activated account using activation link.")
-                        .build());
+        this.securityUtil.setAuthentication(savedUser);
+
+        try{
+
+            this.auditService.create(
+                    AuditRequestDto.builder()
+                            .action(AuditActionConstants.ACTIVATE_ACCOUNT)
+                            .entityAffected(EntityAffectedConstants.AUTH)
+                            .entityId(savedUser.getId())
+                            .description("User activated account using activation link.")
+                            .build());
+        }
+        finally {
+
+            this.securityUtil.clearAuthentication();
+        }
     }
 
     @Transactional
@@ -301,9 +359,12 @@ public class AuthService {
 
         final User user = this.userRepository
                 .findByEmailAndActiveTrue(email)
-                .orElseThrow(() ->
-                        new UnauthorizedException
-                                ("If an account with that email exists, a password reset link has been sent."));
+                .orElse(null);
+
+        if (user == null) {
+
+            return;
+        }
 
         final String resetToken = this.tokenGeneratorService.generateToken();
 
@@ -313,7 +374,7 @@ public class AuthService {
                 .plus(ApplicationConstants.RESET_PASSWORD_EXPIRY_MINUTES
                         , ChronoUnit.MINUTES));
 
-        this.userRepository.save(user);
+        final User savedUser = this.userRepository.save(user);
 
         final String resetLink =
                 this.baseUrl +
@@ -323,13 +384,22 @@ public class AuthService {
         this.emailService.sendForgotPasswordMail(
                 user.getEmail(), resetLink);
 
-        this.auditService.create(
-                AuditRequestDto.builder()
-                        .action(AuditActionConstants.FORGOT_PASSWORD)
-                        .entityAffected(EntityAffectedConstants.AUTH)
-                        .entityId(user.getId())
-                        .description("Password reset link sent.")
-                        .build());
+        this.securityUtil.setAuthentication(savedUser);
+
+        try{
+
+            this.auditService.create(
+                    AuditRequestDto.builder()
+                            .action(AuditActionConstants.FORGOT_PASSWORD)
+                            .entityAffected(EntityAffectedConstants.AUTH)
+                            .entityId(savedUser.getId())
+                            .description("Password reset link sent.")
+                            .build());
+        }
+        finally {
+
+            this.securityUtil.clearAuthentication();
+        }
     }
 
     @Transactional
@@ -351,17 +421,27 @@ public class AuthService {
         user.setResetPasswordToken(null);
         user.setResetPasswordTokenExpiresAt(null);
 
-        this.userRepository.save(user);
+        final User savedUser = this.userRepository.save(user);
 
-        this.auditService.create(
-                AuditRequestDto.builder()
-                        .action(AuditActionConstants.RESET_PASSWORD)
-                        .entityAffected(EntityAffectedConstants.AUTH)
-                        .entityId(user.getId())
-                        .description("User reset password.")
-                        .build());
+        this.securityUtil.setAuthentication(savedUser);
+
+        try{
+
+            this.auditService.create(
+                    AuditRequestDto.builder()
+                            .action(AuditActionConstants.RESET_PASSWORD)
+                            .entityAffected(EntityAffectedConstants.AUTH)
+                            .entityId(savedUser.getId())
+                            .description("User reset password.")
+                            .build());
+        }
+        finally {
+
+            this.securityUtil.clearAuthentication();
+        }
     }
 
+    @Transactional
     public void logout() {
 
         this.auditService.create(AuditRequestDto.builder()

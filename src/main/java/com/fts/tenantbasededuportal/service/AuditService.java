@@ -4,6 +4,8 @@ import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
 import com.fts.tenantbasededuportal.dto.audit.AuditResponseDto;
 import com.fts.tenantbasededuportal.entity.AuditLog;
 import com.fts.tenantbasededuportal.entity.User;
+import com.fts.tenantbasededuportal.exception.ResourceNotFoundException;
+import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.util.constants.PermissionConstants;
 import com.fts.tenantbasededuportal.repository.AuditLogRepository;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
@@ -13,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +29,9 @@ public class AuditService {
 
     private final PermissionService permissionService;
 
+    private final UserRepository userRepository;
+
+    @Transactional
     public void create(final AuditRequestDto request) {
 
         final User currentUser = this.securityUtil.getCurrentUser();
@@ -51,6 +57,7 @@ public class AuditService {
         this.auditLogRepository.save(auditLog);
     }
 
+    @Transactional(readOnly = true)
     public Page<AuditResponseDto> retrieveAuditLogs(final int page, final int size) {
 
         this.permissionService.requirePermission(PermissionConstants.VIEW_AUDIT_LOGS);
@@ -81,12 +88,17 @@ public class AuditService {
         });
     }
 
+    @Transactional(readOnly = true)
     public Page<AuditResponseDto> retrieveAuditLogsByUser(
             final String userId,
             final int page,
             final int size) {
 
         this.permissionService.requirePermission(PermissionConstants.VIEW_AUDIT_LOGS);
+
+        this.userRepository.findById(userId).orElseThrow(()->
+                new ResourceNotFoundException(
+                        "User not found"));
 
         final Page<AuditLog> auditLogs =
                 this.auditLogRepository.findByUser_Id(

@@ -4,6 +4,7 @@ import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -20,7 +21,11 @@ public interface UserRepository extends JpaRepository<User,String> {
             String userId,
             Pageable pageable);
 
+    @EntityGraph(attributePaths = {"role", "organization"})
     Optional<User> findByEmail(String email);
+
+    @EntityGraph(attributePaths = {"role", "organization"})
+    Optional<User> findById(String id);
 
     boolean existsByEmail(String email);
 
@@ -30,14 +35,6 @@ public interface UserRepository extends JpaRepository<User,String> {
 
     Page<User> findByOrganizationAndActiveTrue(Organization organization,
             Pageable pageable);
-
-    List<User> findByActiveTrue();
-
-    List<User> findByOrganizationId(String id);
-
-    List<User> findByOrganizationAndActiveTrue(Organization organization);
-
-    boolean existsByOrganizationAndActiveTrue(Organization organization);
 
     Optional<User> findByActivationToken(String activationToken);
 

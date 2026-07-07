@@ -1,6 +1,6 @@
 package com.fts.tenantbasededuportal.util.constants;
 
-public class AuditActionConstants {
+public final class AuditActionConstants {
 
     private AuditActionConstants() {}
 
@@ -9,7 +9,6 @@ public class AuditActionConstants {
     public static final String LOGIN = "LOGIN";
     public static final String LOGOUT = "LOGOUT";
 
-    public static final String VERIFY_OTP = "VERIFY_OTP";
     public static final String RESEND_OTP = "RESEND_OTP";
 
     public static final String ACTIVATE_ACCOUNT = "ACTIVATE_ACCOUNT";
