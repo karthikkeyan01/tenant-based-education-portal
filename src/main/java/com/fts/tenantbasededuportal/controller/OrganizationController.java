@@ -44,8 +44,7 @@ public class OrganizationController {
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping
-    public ResponseEntity<ApiResponseDto<Page<OrganizationResponseDto>>>
-    retrieveAllOrganizations(
+    public ResponseEntity<ApiResponseDto<Page<OrganizationResponseDto>>> retrieveAllOrganizations(
             @Min(0) @RequestParam(defaultValue = "0")final int page,
             @Min(1) @Max(100) @RequestParam(defaultValue = "10")final int size){
 
@@ -62,8 +61,7 @@ public class OrganizationController {
 
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponseDto<OrganizationResponseDto>>
-    retrieveOrganizationById(@PathVariable final String id) {
+    public ResponseEntity<ApiResponseDto<OrganizationResponseDto>> retrieveOrganizationById(@PathVariable final String id) {
 
         final OrganizationResponseDto response =
                 this.organizationService.retrieveOrganizationById(id);

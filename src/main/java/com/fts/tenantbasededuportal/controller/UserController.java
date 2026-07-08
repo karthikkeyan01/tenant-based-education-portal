@@ -96,7 +96,7 @@ public class UserController {
     @PreAuthorize("hasRole('ORG_ADMIN')")
     @PutMapping("/{userId}/activate")
     public ResponseEntity<ApiResponseDto<Void>> activate(
-            @PathVariable final String userId,
+            @RequestParam final String userId,
             @RequestParam final boolean active) {
 
         this.userService.activate(userId, active);
