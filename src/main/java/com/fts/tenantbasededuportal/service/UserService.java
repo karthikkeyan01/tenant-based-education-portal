@@ -86,8 +86,7 @@ public class UserService {
         }
         //deny the operation for users.
         else {
-            throw new UnauthorizedException(
-                    "you don't have permission to view users");
+            throw new UnauthorizedException("you don't have permission to view users");
         }
 
         return users.map(user ->
