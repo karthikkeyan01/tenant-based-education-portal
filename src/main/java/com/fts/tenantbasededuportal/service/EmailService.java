@@ -2,131 +2,110 @@ package com.fts.tenantbasededuportal.service;
 
 import com.fts.tenantbasededuportal.exception.EmailDeliveryException;
 import com.fts.tenantbasededuportal.util.constants.ApplicationConstants;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class EmailService {
 
+    private final EmailTemplateService emailTemplateService;
+
     private final JavaMailSender mailSender;
 
     @Value("${spring.mail.username}")
     private String fromEmail;
 
+    private void sendHtmlMail(
+            final String toEmail,
+            final String subject,
+            final String htmlContent) {
+
+        try {
+
+            final MimeMessage message =
+                    this.mailSender.createMimeMessage();
+
+            final MimeMessageHelper helper =
+                    new MimeMessageHelper(message, "UTF-8");
+
+            helper.setFrom(this.fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true);
+
+            this.mailSender.send(message);
+
+        } catch (final Exception exception) {
+
+            throw new EmailDeliveryException(
+                    "Failed to send email.",
+                    exception);
+        }
+    }
+
     //method to send the generated otp to the given toEmail.
     public void sendOtpMail(final String toEmail, final String otp) {
 
-        try{
+        final String html =
+                this.emailTemplateService.buildOtpTemplate(
+                        otp,
+                        ApplicationConstants.OTP_EXPIRY_MINUTES);
 
-            final SimpleMailMessage message = new SimpleMailMessage();
-
-            message.setFrom(this.fromEmail);
-
-            message.setTo(toEmail);
-
-            message.setSubject("Your MFA Verification Code");
-
-            message.setText("Your Verification Code is: " + otp
-            + "\n\nThis code expires in "
-            +ApplicationConstants.OTP_EXPIRY_MINUTES
-            + " minutes.");
-
-            this.mailSender.send(message);
-        }
-        catch (Exception e){
-
-            throw new EmailDeliveryException(
-                    "Failed to send verification email.",e);
-        }
+        this.sendHtmlMail(
+                toEmail,
+                "Your MFA Verification Code",
+                html);
     }
 
     public void sendActivationMail(final String toEmail,
                                    final String activationLink){
 
-        try{
-            final SimpleMailMessage message = new SimpleMailMessage();
+        final String html =
+                this.emailTemplateService
+                        .buildActivationTemplate(
+                                activationLink,
+                                ApplicationConstants.ACTIVATION_LINK_EXPIRY_HOURS);
 
-            message.setFrom(this.fromEmail);
-
-            message.setTo(toEmail);
-
-            message.setSubject("Activate your Account");
-
-            message.setText("Welcome!!\n\n"
-            + "Please activate your account using the link below:\n\n"
-            + activationLink
-            +"\n\nThis link expires in "
-            +ApplicationConstants.ACTIVATION_LINK_EXPIRY_HOURS
-            + " hours.");
-
-            this.mailSender.send(message);
-        }
-        catch (final Exception exception){
-
-            throw new EmailDeliveryException(
-                    "Failed to send activation email.",exception);
-        }
+        this.sendHtmlMail(
+                toEmail,
+                "Activate Your Account",
+                html);
     }
 
     public void sendForgotPasswordMail
             (final String toEmail, final String resetLink){
 
-        try{
+        final String html =
+                this.emailTemplateService
+                        .buildForgotPasswordTemplate(
+                                resetLink,
+                                ApplicationConstants.RESET_PASSWORD_EXPIRY_MINUTES);
 
-            final SimpleMailMessage message = new SimpleMailMessage();
-
-            message.setFrom(this.fromEmail);
-
-            message.setTo(toEmail);
-
-            message.setSubject("Reset Your Password");
-
-            message.setText("You requested to reset your password.\n\n"
-            + "Use the link below:\n\n"
-            + resetLink
-            + "\n\nThis link expires in "
-            + ApplicationConstants.RESET_PASSWORD_EXPIRY_MINUTES
-            + " minutes.");
-
-            this.mailSender.send(message);
-        }
-        catch (final Exception exception){
-
-            throw new EmailDeliveryException(
-                    "Failed to send forgot password email.", exception);
-        }
+        this.sendHtmlMail(
+                toEmail,
+                "Reset Your Password",
+                html);
     }
 
     public void sendSuperAdminCredentialsMail(
             final String email, final String temporaryPassword, final String resetLink){
 
-        try{
-            final SimpleMailMessage message = new SimpleMailMessage();
+        final String html =
+                this.emailTemplateService
+                        .buildSuperAdminTemplate(
+                                email,
+                                temporaryPassword,
+                                resetLink,
+                                ApplicationConstants.RESET_PASSWORD_EXPIRY_MINUTES);
 
-            message.setFrom(this.fromEmail);
-
-            message.setTo(email);
-
-            message.setSubject("Super Admin Credentials And Reset Password Link");
-
-            message.setText("Your Super Administrator account has been created.\n\n"
-            + "Username: " + email + "\n"
-            + "Password: " + temporaryPassword
-            + "\n\nWe recommend you to reset your account password using the link below:\n\n"
-            + resetLink
-            + "\n\nThis link expires in "
-            + ApplicationConstants.RESET_PASSWORD_EXPIRY_MINUTES + " minutes");
-
-            this.mailSender.send(message);
-        }
-        catch (final Exception exception){
-
-            throw new EmailDeliveryException(
-                    "Failed to send SuperAdmin Credentials email.", exception);
-        }
+        this.sendHtmlMail(
+                email,
+                "Super Administrator Credentials",
+                html);
     }
 }
