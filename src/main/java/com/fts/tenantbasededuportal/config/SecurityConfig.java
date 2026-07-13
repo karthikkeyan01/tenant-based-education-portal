@@ -2,6 +2,7 @@ package com.fts.tenantbasededuportal.config;
 
 import com.fts.tenantbasededuportal.security.CustomUserDetailsService;
 import com.fts.tenantbasededuportal.security.JwtFilter;
+import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,12 +41,8 @@ public class SecurityConfig {
 
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize ->
-                        authorize.requestMatchers("/auth/login",
-                                        "/auth/register", "/auth/resend-otp",
-                                        "/auth/verify-otp", "/auth/activate-account",
-                                        "/auth/forgot-password", "/auth/reset-password",
-                                        "/auth/logout", "/error").permitAll()
-                                .requestMatchers("/actuator/**").hasRole("SUPER_ADMIN")
+                        authorize.requestMatchers("/auth/**").permitAll()
+                                .requestMatchers("/actuator/**").hasRole(RoleConstants.SUPER_ADMIN)
                                 .anyRequest().authenticated())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
