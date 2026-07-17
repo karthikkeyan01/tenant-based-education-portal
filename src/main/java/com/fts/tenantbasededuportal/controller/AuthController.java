@@ -17,7 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Authentication", description = "Authentication and account management APIs.")
+@Tag(name = "Authentication", description = "APIs for Authentication and account management.")
 @RestController
 @RequestMapping("/auth")
 @Validated

@@ -15,4 +15,6 @@ public final class SwaggerConstants {
     public static final String SECURITY_SCHEME = "bearer";
 
     public static final String SECURITY_BEARER_FORMAT = "JWT";
+
+    public static final String LOCAL_SERVER_DESCRIPTION = "Local Development";
 }

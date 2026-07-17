@@ -7,6 +7,12 @@ import com.fts.tenantbasededuportal.dto.organization.OrganizationRequestDto;
 import com.fts.tenantbasededuportal.dto.organization.OrganizationResponseDto;
 import com.fts.tenantbasededuportal.service.OrganizationService;
 import com.fts.tenantbasededuportal.util.constants.SecurityConstants;
+import com.fts.tenantbasededuportal.util.constants.SwaggerConstants;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -17,14 +23,21 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "Organization Management", description = "APIs for managing organizations.")
+@SecurityRequirement(name = SwaggerConstants.SECURITY_SCHEME_NAME)
 @RestController
-@RequestMapping("/organization")
+@RequestMapping("/organizations")
 @RequiredArgsConstructor
 @Validated
 public class OrganizationController {
 
     private final OrganizationService organizationService;
 
+    @Operation(summary = "Create organization",
+            description = "Creates a new organization along with its administrator account and sends an account activation email.")
+    @ApiResponses({@ApiResponse(responseCode = "201", description = "Organization created successfully along with its administrator."),
+            @ApiResponse(responseCode = "409", description = "Organization or administrator email already exists."),
+            @ApiResponse(responseCode = "500", description = "Failed to send the account activation email.")})
     @PreAuthorize(SecurityConstants.HAS_SUPER_ADMIN)
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -36,11 +49,12 @@ public class OrganizationController {
 
         return ApiResponseDto.<CreateOrganizationResponseDto>builder()
                 .code(HttpStatus.CREATED.value())
-                .message("Organization created successfully along with its admin.")
+                .message("Organization created successfully along with its administrator.")
                 .data(response)
                 .build();
     }
 
+    @ApiResponse(responseCode = "200", description = "Organizations retrieved successfully.")
     @PreAuthorize(SecurityConstants.HAS_SUPER_ADMIN)
     @GetMapping
     public ApiResponseDto<Page<OrganizationResponseDto>> retrieveAllOrganizations(
@@ -57,6 +71,8 @@ public class OrganizationController {
                 .build();
     }
 
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Organization retrieved successfully."),
+            @ApiResponse(responseCode = "404", description = "Organization not found.")})
     @PreAuthorize(SecurityConstants.HAS_SUPER_ADMIN)
     @GetMapping("/{id}")
     public ApiResponseDto<OrganizationResponseDto> retrieveOrganizationById(@PathVariable final String id) {
@@ -71,6 +87,9 @@ public class OrganizationController {
                 .build();
     }
 
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Organization updated successfully."),
+            @ApiResponse(responseCode = "400", description = "Invalid or duplicate organization name."),
+            @ApiResponse(responseCode = "404", description = "Organization not found.")})
     @PreAuthorize(SecurityConstants.HAS_SUPER_ADMIN)
     @PutMapping("/{id}")
     public ApiResponseDto<OrganizationResponseDto> updateOrganization(

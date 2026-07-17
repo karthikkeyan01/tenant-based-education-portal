@@ -6,6 +6,12 @@ import com.fts.tenantbasededuportal.dto.profile.ProfileResponseDto;
 import com.fts.tenantbasededuportal.dto.profile.UpdateProfileRequestDto;
 import com.fts.tenantbasededuportal.service.ProfileService;
 import com.fts.tenantbasededuportal.util.constants.SecurityConstants;
+import com.fts.tenantbasededuportal.util.constants.SwaggerConstants;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,6 +19,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "Profile Management", description = "APIs for managing the authenticated user's profile.")
+@SecurityRequirement(name = SwaggerConstants.SECURITY_SCHEME_NAME)
 @RestController
 @RequestMapping("/profile")
 @RequiredArgsConstructor
@@ -21,6 +29,7 @@ public class ProfileController {
 
     private final ProfileService profileService;
 
+    @ApiResponse(responseCode = "200", description = "Profile retrieved successfully.")
     @PreAuthorize(SecurityConstants.IS_AUTHENTICATED)
     @GetMapping
     public ApiResponseDto<ProfileResponseDto> retrieveProfile() {
@@ -34,6 +43,8 @@ public class ProfileController {
                 .build();
     }
 
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Profile updated successfully."),
+            @ApiResponse(responseCode = "400", description = "Invalid profile details.")})
     @PreAuthorize(SecurityConstants.IS_AUTHENTICATED)
     @PutMapping
     public ApiResponseDto<ProfileResponseDto> updateProfile(
@@ -48,6 +59,10 @@ public class ProfileController {
                 .build();
     }
 
+    @Operation(summary = "Change password",
+            description = "Changes the password of the authenticated user after verifying the current password.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Password changed successfully."),
+            @ApiResponse(responseCode = "400", description = "Invalid password details.")})
     @PreAuthorize(SecurityConstants.IS_AUTHENTICATED)
     @PutMapping("/change-password")
     public ApiResponseDto<Void> changePassword(
