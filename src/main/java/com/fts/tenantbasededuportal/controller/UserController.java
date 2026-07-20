@@ -17,6 +17,7 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -163,7 +164,7 @@ public class UserController {
             @ApiResponse(responseCode = "400", description = "Invalid bulk upload request."),
             @ApiResponse(responseCode = "404", description = "Organization not found.")})
     @PreAuthorize(SecurityConstants.HAS_SUPER_OR_ORG_ADMIN)
-    @PostMapping("/bulk-upload")
+    @PostMapping(value = "/bulk-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponseDto<BulkUploadResponseDto> uploadBulk(
             @Parameter(description = "CSV or Excel (.xlsx) file containing user data.")
             @RequestParam("file") final MultipartFile file,

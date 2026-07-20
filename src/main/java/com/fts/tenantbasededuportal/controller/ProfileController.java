@@ -43,6 +43,7 @@ public class ProfileController {
                 .build();
     }
 
+    @Operation(summary = "Update profile.", description = "Updates one or more details of the authenticated user except password.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Profile updated successfully."),
             @ApiResponse(responseCode = "400", description = "Invalid profile details.")})
     @PreAuthorize(SecurityConstants.IS_AUTHENTICATED)

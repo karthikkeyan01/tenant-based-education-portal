@@ -87,6 +87,7 @@ public class OrganizationController {
                 .build();
     }
 
+    @Operation(summary = "Update organization details", description = "Updates one or more organization details, only be performed by a super admin.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Organization updated successfully."),
             @ApiResponse(responseCode = "400", description = "Invalid or duplicate organization name."),
             @ApiResponse(responseCode = "404", description = "Organization not found.")})

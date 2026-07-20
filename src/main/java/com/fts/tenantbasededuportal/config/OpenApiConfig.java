@@ -8,6 +8,7 @@ import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.servers.Server;
+import io.swagger.v3.oas.models.tags.Tag;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -39,6 +40,12 @@ public class OpenApiConfig {
                         .license(new License()
                                 .name("MIT License")
                                 .url("https://opensource.org/licenses/MIT")))
+                .tags(List.of(
+                        new Tag().name("Authentication"),
+                        new Tag().name("Organization Management"),
+                        new Tag().name("User Management"),
+                        new Tag().name("Profile Management"),
+                        new Tag().name("Audit Management")))
                 .servers(List.of(new Server()
                         .url(baseUrl)
                         .description(SwaggerConstants.LOCAL_SERVER_DESCRIPTION)))
