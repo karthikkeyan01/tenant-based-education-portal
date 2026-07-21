@@ -36,8 +36,7 @@ public class AuditController {
             @Min(0) @RequestParam(defaultValue = "0") final int page,
             @Min(1) @Max(100) @RequestParam(defaultValue = "10") final int size){
 
-        final Page<AuditResponseDto> response =
-                this.auditService.retrieveAuditLogs(page, size);
+        final Page<AuditResponseDto> response = this.auditService.retrieveAuditLogs(page, size);
 
         return ApiResponseDto.<Page<AuditResponseDto>>builder()
                 .code(HttpStatus.OK.value())
@@ -52,12 +51,10 @@ public class AuditController {
     @PreAuthorize(SecurityConstants.HAS_SUPER_ADMIN)
     @GetMapping("/users/{userId}")
     public ApiResponseDto<Page<AuditResponseDto>> retrieveAuditLogsByUser(
-            @PathVariable final String userId,
-            @Min(0) @RequestParam(defaultValue = "0") final int page,
+            @PathVariable final String userId, @Min(0) @RequestParam(defaultValue = "0") final int page,
             @Min(1) @Max(100) @RequestParam(defaultValue = "10") final int size){
 
-        final Page<AuditResponseDto> response =
-                this.auditService.retrieveAuditLogsByUser(userId, page, size);
+        final Page<AuditResponseDto> response = this.auditService.retrieveAuditLogsByUser(userId, page, size);
 
         return ApiResponseDto.<Page<AuditResponseDto>>builder()
                 .code(HttpStatus.OK.value())

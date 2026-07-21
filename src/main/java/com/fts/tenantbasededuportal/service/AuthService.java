@@ -34,23 +34,14 @@ import java.time.temporal.ChronoUnit;
 public class AuthService {
 
     private final UserRepository userRepository;
-
     private final RoleRepository roleRepository;
-
     private final PasswordEncoder passwordEncoder;
-
     private final AuthenticationManager authenticationManager;
-
     private final JwtService jwtService;
-
     private final OtpGeneratorService otpGeneratorService;
-
     private final AuditService auditService;
-
     private final EmailService emailService;
-
     private final TokenGeneratorService tokenGeneratorService;
-
     private final SecurityUtil  securityUtil;
 
     @Value("${app.base-url}")
@@ -60,14 +51,11 @@ public class AuthService {
     public void register(final RegisterRequestDto request){
 
         if (this.userRepository.existsByEmail(request.getEmail())){
-
             throw new ConflictException("Email already exists");
         }
 
-        final Role userRole = this.roleRepository.findByName(RoleConstants.USER)
-                .orElseThrow(() -> new IllegalStateException(
+        final Role userRole = this.roleRepository.findByName(RoleConstants.USER).orElseThrow(() -> new IllegalStateException(
                         "User role not found"));
-
         final User user = User.builder()
                 .email(request.getEmail())
                 .password(this.passwordEncoder.encode(request.getPassword()))
@@ -85,7 +73,6 @@ public class AuthService {
                 .build();
 
         final User savedUser = this.userRepository.save(user);
-
         this.securityUtil.setAuthentication(savedUser);
 
         try{
@@ -98,44 +85,31 @@ public class AuthService {
                             .build());
         }
         finally {
-
             this.securityUtil.clearAuthentication();
         }
     }
 
     public LoginResponseDto login(final LoginRequestDto request){
 
-        final Authentication authentication = this.authenticationManager
-                    .authenticate(new UsernamePasswordAuthenticationToken(
-                            request.getEmail(),
-                            request.getPassword()));
+        final Authentication authentication = this.authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                            request.getEmail(), request.getPassword()));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        final UserPrincipal userPrincipal =
-                (UserPrincipal) authentication.getPrincipal();
-
-        final User user = this.userRepository.findByIdAndActiveTrue(
-                        userPrincipal.getId())
-                .orElseThrow(() -> new IllegalStateException(
-                        "User not found."));
+        final UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        final User user = this.userRepository.findByIdAndActiveTrue(userPrincipal.getId()).orElseThrow(() ->
+                new IllegalStateException("User not found."));
 
         if (Boolean.TRUE.equals(user.getMfaEnabled())){
-
             final String otp = this.otpGeneratorService.generateOtp();
 
             user.setOtp(this.passwordEncoder.encode(otp));
-
-            user.setOtpExpiresAt(Instant.now()
-                    .plus(ApplicationConstants.OTP_EXPIRY_MINUTES
-                    ,ChronoUnit.MINUTES));
+            user.setOtpExpiresAt(Instant.now().plus(ApplicationConstants.OTP_EXPIRY_MINUTES,ChronoUnit.MINUTES));
 
             this.userRepository.save(user);
-
             this.emailService.sendOtpMail(user.getEmail(), otp);
 
             try{
-
                 this.auditService.create(
                         AuditRequestDto.builder()
                                 .action(AuditActionConstants.LOGIN)
@@ -148,17 +122,13 @@ public class AuthService {
                         .email(user.getEmail())
                         .role(userPrincipal.getRole())
                         .mfaRequired(true)
-                        .message("OTP sent to your email. Please verify MFA.")
                         .build();
             }
             finally {
-
                 this.securityUtil.clearAuthentication();
             }
         }
-
         user.setLastLoginAt(Instant.now());
-
         this.userRepository.save(user);
 
         try{
@@ -169,7 +139,6 @@ public class AuthService {
                     .entityId(user.getId())
                     .description("User logged in.")
                     .build());
-
             final String token = this.jwtService.generateToken(userPrincipal);
 
             return LoginResponseDto.builder()
@@ -177,11 +146,9 @@ public class AuthService {
                     .email(userPrincipal.getUsername())
                     .role(userPrincipal.getRole())
                     .mfaRequired(false)
-                    .message("Login successful.")
                     .build();
         }
         finally {
-
             this.securityUtil.clearAuthentication();
         }
     }
@@ -189,34 +156,24 @@ public class AuthService {
     @Transactional
     public LoginResponseDto verifyOtp(final String email, final String otp){
 
-        final User user = this.userRepository
-                .findByEmailAndActiveTrue(email)
-                .orElseThrow(() -> new UnauthorizedException(
+        final User user = this.userRepository.findByEmailAndActiveTrue(email).orElseThrow(() -> new UnauthorizedException(
                         "Invalid email or OTP."));
 
         if (!Boolean.TRUE.equals(user.getMfaEnabled())) {
-
             throw new BadRequestException("MFA is not enabled for this user.");
         }
-
         if (user.getOtp() == null || user.getOtpExpiresAt() == null) {
-
             throw new BadRequestException("No OTP has been generated.");
-
         }
-
         if (Instant.now().isAfter(user.getOtpExpiresAt())) {
-
             user.setOtp(null);
             user.setOtpExpiresAt(null);
-
             this.userRepository.save(user);
 
             throw new BadRequestException("OTP has expired");
         }
 
         if (!this.passwordEncoder.matches(otp, user.getOtp())) {
-
             throw new BadRequestException("Invalid OTP");
         }
 
@@ -225,7 +182,6 @@ public class AuthService {
         user.setLastLoginAt(Instant.now());
 
         final User savedUser = this.userRepository.save(user);
-
         final UserPrincipal principal = new UserPrincipal(savedUser.getId(),
                 savedUser.getEmail(),
                 savedUser.getPassword(),
@@ -234,11 +190,9 @@ public class AuthService {
                         : null,
                 savedUser.getRole().getName(),
                 savedUser.getActive());
-
         this.securityUtil.setAuthentication(savedUser);
 
         try{
-
             this.auditService.create(
                     AuditRequestDto.builder()
                             .action(AuditActionConstants.LOGIN)
@@ -246,7 +200,6 @@ public class AuthService {
                             .entityId(savedUser.getId())
                             .description("User logged in using MFA.")
                             .build());
-
             final String token = this.jwtService.generateToken(principal);
 
             return LoginResponseDto.builder()
@@ -254,11 +207,9 @@ public class AuthService {
                     .email(savedUser.getEmail())
                     .role(savedUser.getRole().getName())
                     .mfaRequired(false)
-                    .message("MFA verification successful.")
                     .build();
         }
         finally {
-
             this.securityUtil.clearAuthentication();
         }
     }
@@ -266,34 +217,25 @@ public class AuthService {
     @Transactional
     public void resendOtp(final String email) {
 
-        final User user = this.userRepository.findByEmailAndActiveTrue(
-                email).orElse(null);
+        final User user = this.userRepository.findByEmailAndActiveTrue(email).orElse(null);
 
         if (user == null) {
-
             return;
         }
-
         if (!user.getMfaEnabled()) {
-
             throw new BadRequestException("MFA is not enabled.");
         }
 
         final String otp = this.otpGeneratorService.generateOtp();
-
         user.setOtp(this.passwordEncoder.encode(otp));
-
         user.setOtpExpiresAt(Instant.now()
                 .plus(ApplicationConstants.OTP_EXPIRY_MINUTES, ChronoUnit.MINUTES));
 
         this.userRepository.save(user);
-
         this.emailService.sendOtpMail(user.getEmail(), otp);
-
         this.securityUtil.setAuthentication(user);
 
         try{
-
             this.auditService.create(
                     AuditRequestDto.builder()
                             .action(AuditActionConstants.RESEND_OTP)
@@ -303,29 +245,20 @@ public class AuthService {
                             .build());
         }
         finally {
-
             this.securityUtil.clearAuthentication();
         }
     }
 
     @Transactional
-    public void activateAccount(
-            final String token, final String password) {
+    public void activateAccount(final String token, final String password) {
 
-        final User user = this.userRepository
-                .findByActivationToken(token)
-                .orElseThrow(() -> new BadRequestException("Invalid token."));
+        final User user = this.userRepository.findByActivationToken(token).orElseThrow(() -> new BadRequestException("Invalid token."));
 
         if (user.getActive()) {
-
             throw new BadRequestException(
                     "Account is already activated.");
         }
-
-        if (user.getActivationTokenExpiresAt() == null
-                || Instant.now().isAfter(
-                        user.getActivationTokenExpiresAt())) {
-
+        if (user.getActivationTokenExpiresAt() == null || Instant.now().isAfter(user.getActivationTokenExpiresAt())) {
             throw new BadRequestException("Activation link has expired.");
         }
 
@@ -333,13 +266,10 @@ public class AuthService {
         user.setActive(true);
         user.setActivationToken(null);
         user.setActivationTokenExpiresAt(null);
-
         final User savedUser = this.userRepository.save(user);
-
         this.securityUtil.setAuthentication(savedUser);
 
         try{
-
             this.auditService.create(
                     AuditRequestDto.builder()
                             .action(AuditActionConstants.ACTIVATE_ACCOUNT)
@@ -349,7 +279,6 @@ public class AuthService {
                             .build());
         }
         finally {
-
             this.securityUtil.clearAuthentication();
         }
     }
@@ -357,37 +286,24 @@ public class AuthService {
     @Transactional
     public void forgotPassword(final String email) {
 
-        final User user = this.userRepository
-                .findByEmailAndActiveTrue(email)
-                .orElse(null);
+        final User user = this.userRepository.findByEmailAndActiveTrue(email).orElse(null);
 
         if (user == null) {
-
             return;
         }
-
         final String resetToken = this.tokenGeneratorService.generateToken();
-
         user.setResetPasswordToken(resetToken);
-
         user.setResetPasswordTokenExpiresAt(Instant.now()
                 .plus(ApplicationConstants.RESET_PASSWORD_EXPIRY_MINUTES
                         , ChronoUnit.MINUTES));
 
         final User savedUser = this.userRepository.save(user);
+        final String resetLink = this.baseUrl + "/auth/reset-password?token=" + resetToken;
 
-        final String resetLink =
-                this.baseUrl +
-                        "/auth/reset-password?token=" +
-                        resetToken;
-
-        this.emailService.sendForgotPasswordMail(
-                user.getEmail(), resetLink);
-
+        this.emailService.sendForgotPasswordMail(user.getEmail(), resetLink);
         this.securityUtil.setAuthentication(savedUser);
 
         try{
-
             this.auditService.create(
                     AuditRequestDto.builder()
                             .action(AuditActionConstants.FORGOT_PASSWORD)
@@ -397,7 +313,6 @@ public class AuthService {
                             .build());
         }
         finally {
-
             this.securityUtil.clearAuthentication();
         }
     }
@@ -405,28 +320,20 @@ public class AuthService {
     @Transactional
     public void resetPassword(final String token, final String password) {
 
-        final User user = this.userRepository.findByResetPasswordToken(
-                token).orElseThrow(() -> new BadRequestException(
+        final User user = this.userRepository.findByResetPasswordToken(token).orElseThrow(() -> new BadRequestException(
                         "Invalid token."));
 
-        if (user.getResetPasswordTokenExpiresAt() == null
-                || Instant.now().isAfter(
-                user.getResetPasswordTokenExpiresAt())) {
-
-            throw new BadRequestException(
-                    "Reset password link has expired.");
+        if (user.getResetPasswordTokenExpiresAt() == null || Instant.now().isAfter(user.getResetPasswordTokenExpiresAt())) {
+            throw new BadRequestException("Reset password link has expired.");
         }
 
         user.setPassword(this.passwordEncoder.encode(password));
         user.setResetPasswordToken(null);
         user.setResetPasswordTokenExpiresAt(null);
-
         final User savedUser = this.userRepository.save(user);
-
         this.securityUtil.setAuthentication(savedUser);
 
         try{
-
             this.auditService.create(
                     AuditRequestDto.builder()
                             .action(AuditActionConstants.RESET_PASSWORD)
@@ -436,7 +343,6 @@ public class AuthService {
                             .build());
         }
         finally {
-
             this.securityUtil.clearAuthentication();
         }
     }

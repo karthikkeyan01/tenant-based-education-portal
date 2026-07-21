@@ -31,19 +31,12 @@ import java.util.List;
 public class DataInitializer implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
-
     private final PermissionRepository permissionRepository;
-
     private final RolePermissionRepository rolePermissionRepository;
-
     private final UserRepository userRepository;
-
     private final PasswordGeneratorService passwordGeneratorService;
-
     private final TokenGeneratorService tokenGeneratorService;
-
     private final PasswordEncoder passwordEncoder;
-
     private final EmailService  emailService;
 
     @Value("${app.base-url}")
@@ -59,7 +52,6 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void initializeRoles(){
-
         final String[] roles = {
                 RoleConstants.SUPER_ADMIN,
                 RoleConstants.ORG_ADMIN,
@@ -67,13 +59,10 @@ public class DataInitializer implements CommandLineRunner {
         };
 
         for(final String roleName : roles){
-
             if(!this.roleRepository.existsByName(roleName)){
-
                 this.roleRepository.save(Role.builder()
                                 .name(roleName)
-                                .build()
-                );
+                                .build());
             }
         }
     }
@@ -97,30 +86,19 @@ public class DataInitializer implements CommandLineRunner {
         };
 
         for(final String permissionName : permissions){
-
             if (!this.permissionRepository.existsByName(permissionName)){
-
                 this.permissionRepository.save(Permission.builder()
                                 .name(permissionName)
-                                .build()
-                );
+                                .build());
             }
         }
     }
 
     private void initializeRolePermissions(){
 
-        final Role superAdmin = this.roleRepository
-                        .findByName(RoleConstants.SUPER_ADMIN)
-                        .orElseThrow();
-
-        final Role orgAdmin = this.roleRepository
-                        .findByName(RoleConstants.ORG_ADMIN)
-                        .orElseThrow();
-
-        final Role user = this.roleRepository
-                        .findByName(RoleConstants.USER)
-                        .orElseThrow();
+        final Role superAdmin = this.roleRepository.findByName(RoleConstants.SUPER_ADMIN).orElseThrow();
+        final Role orgAdmin = this.roleRepository.findByName(RoleConstants.ORG_ADMIN).orElseThrow();
+        final Role user = this.roleRepository.findByName(RoleConstants.USER).orElseThrow();
 
         this.assignAllPermissions(superAdmin);
 
@@ -132,83 +110,59 @@ public class DataInitializer implements CommandLineRunner {
                 PermissionConstants.RESEND_ACTIVATION_EMAIL,
                 PermissionConstants.VIEW_PROFILE,
                 PermissionConstants.UPDATE_PROFILE,
-                PermissionConstants.CHANGE_PASSWORD
-        );
+                PermissionConstants.CHANGE_PASSWORD);
 
         this.assignPermissions(
                 user,
                 PermissionConstants.VIEW_PROFILE,
                 PermissionConstants.UPDATE_PROFILE,
-                PermissionConstants.CHANGE_PASSWORD
-        );
+                PermissionConstants.CHANGE_PASSWORD);
     }
 
     private void assignAllPermissions(final Role role){
-
         final List<Permission> permissions = this.permissionRepository.findAll();
-
         for (final Permission permission : permissions){
             this.assignPermission(role, permission.getName());
         }
     }
 
-    private void assignPermissions(
-            final Role role, final String... permissions){
-
+    private void assignPermissions(final Role role, final String... permissions){
         for (final String permission : permissions){
             this.assignPermission(role, permission);
         }
     }
 
-    private void assignPermission(
-            final Role role, final String permissionName){
+    private void assignPermission(final Role role, final String permissionName){
 
-        final Permission permission = this.permissionRepository.findByName(
-                permissionName).orElseThrow();
-
-        final List<RolePermission> rolePermissions =
-                this.rolePermissionRepository.findByRole(role);
+        final Permission permission = this.permissionRepository.findByName(permissionName).orElseThrow();
+        final List<RolePermission> rolePermissions = this.rolePermissionRepository.findByRole(role);
 
         boolean exists = false;
 
         for(final RolePermission rolePermission : rolePermissions){
-
-            if (rolePermission.getPermission()
-                    .getId()
-                    .equals(permission.getId())){
-
+            if (rolePermission.getPermission().getId().equals(permission.getId())){
                 exists = true;
                 break;
             }
         }
-
         if(!exists){
             final RolePermission rolePermission = RolePermission.builder()
                     .role(role)
                     .permission(permission)
                     .build();
-
             this.rolePermissionRepository.save(rolePermission);
         }
     }
 
     private void initializeSuperAdmin(){
-
         if (this.userRepository.existsByEmail(ApplicationConstants.SUPER_ADMIN_EMAIL)){
-
             return;
         }
 
-        final  Role superAdminRole = this.roleRepository
-                .findByName(RoleConstants.SUPER_ADMIN).orElseThrow(() ->
-                        new IllegalStateException(
-                                "Super_Admin role not found."));
-
-        final String generatedPassword = this.passwordGeneratorService
-                .generatePassword(ApplicationConstants.GENERATED_PASSWORD_LENGTH);
-
+        final  Role superAdminRole = this.roleRepository.findByName(RoleConstants.SUPER_ADMIN).orElseThrow(() ->
+                        new IllegalStateException("Super_Admin role not found."));
+        final String generatedPassword = this.passwordGeneratorService.generatePassword(ApplicationConstants.GENERATED_PASSWORD_LENGTH);
         final String encodedPassword = passwordEncoder.encode(generatedPassword);
-
         final String resetPasswordToken = this.tokenGeneratorService.generateToken();
 
         final User superAdmin = User.builder()
@@ -220,26 +174,20 @@ public class DataInitializer implements CommandLineRunner {
                 .role(superAdminRole)
                 .resetPasswordToken(resetPasswordToken)
                 .resetPasswordTokenExpiresAt(Instant.now()
-                        .plus(ApplicationConstants.RESET_PASSWORD_EXPIRY_MINUTES
-                                ,ChronoUnit.MINUTES))
+                        .plus(ApplicationConstants.ACTIVATION_LINK_EXPIRY_HOURS
+                                ,ChronoUnit.HOURS))
                 .mfaEnabled(false)
                 .organization(null)
                 .build();
 
         final User savedUser = this.userRepository.save(superAdmin);
-
-        final String resetPasswordLink =
-                this.baseUrl
-                        + "/auth/reset-password?token="
-                        + resetPasswordToken;
+        final String resetPasswordLink = this.baseUrl + "/auth/reset-password?token=" + resetPasswordToken;
 
         try{
-
             this.emailService.sendSuperAdminCredentialsMail(savedUser.getEmail(),
                     generatedPassword, resetPasswordLink);
         }
         catch(final Exception e){
-
             throw new EmailDeliveryException("Failed to send SuperAdmin Credentials email.");
         }
 

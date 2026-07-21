@@ -17,7 +17,6 @@ public class JwtService {
 
     @Value("${jwt.secret}")
     private String secretKey;
-
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
@@ -27,8 +26,6 @@ public class JwtService {
 
 
     public String generateToken(final UserPrincipal userPrincipal) {
-
-
         final Map<String, Object> claims = new HashMap<>();
         claims.put(EMAIL, userPrincipal.getEmail());
         claims.put(ROLE, userPrincipal.getRole());
@@ -51,37 +48,24 @@ public class JwtService {
     }
 
     private <T> T extractClaim(final String token, final Function<Claims, T> claimsResolver) {
-
         final Claims claims = this.extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
     public String extractUserId(final String token) {
-
         return this.extractClaim(token, Claims::getSubject);
     }
 
     public String extractEmail(final String token) {
-
-        return this.extractClaim(token,
-                claims -> claims
-                        .get(EMAIL, String.class));
+        return this.extractClaim(token, claims -> claims.get(EMAIL, String.class));
     }
 
     public String extractRole(final String token) {
-
-        return this.extractClaim(
-                token,
-                claims -> claims
-                        .get(ROLE, String.class));
+        return this.extractClaim(token, claims -> claims.get(ROLE, String.class));
     }
 
     public String extractOrganizationId(final String token) {
-
-        return this.extractClaim(
-                token,
-                claims -> claims
-                        .get(ORGANIZATION_ID, String.class));
+        return this.extractClaim(token, claims -> claims.get(ORGANIZATION_ID, String.class));
     }
 
     private Claims extractAllClaims(final String token) {
@@ -93,14 +77,13 @@ public class JwtService {
     }
 
     public boolean validateToken(final String token, final UserPrincipal principal) {
-
-        return !this.isTokenExpired(token)
-        && this.extractUserId(token).equals(principal.getId());
+        return !this.isTokenExpired(token) && this.extractUserId(token).equals(principal.getId());
     }
 
     private boolean isTokenExpired(final String token) {
         return this.extractExpiration(token).before(new Date());
     }
+
     private Date extractExpiration(final String token) {
         return this.extractClaim(token, Claims::getExpiration);
     }

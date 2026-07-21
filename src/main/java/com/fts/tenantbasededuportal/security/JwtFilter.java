@@ -23,14 +23,11 @@ import java.time.Instant;
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-
     private final CustomUserDetailsService customUserDetailsService;
-
     private final ObjectMapper objectMapper;
 
     @Override
-    protected void doFilterInternal(final HttpServletRequest request,
-                                    final HttpServletResponse response,
+    protected void doFilterInternal(final HttpServletRequest request, final HttpServletResponse response,
                                     final FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
@@ -39,30 +36,22 @@ public class JwtFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-
         final String token = authHeader.substring(7);
 
         try {
-
             final String userId = this.jwtService.extractUserId(token);
 
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
-
                 final UserPrincipal principal = this.customUserDetailsService.loadUserById(userId);
-
                 if (this.jwtService.validateToken(token, principal)) {
-
-                    final UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(principal,
+                    final UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(principal,
                                     null,
                                     principal.getAuthorities());
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
-
             filterChain.doFilter(request, response);
         }
         catch (final JwtException | IllegalArgumentException exception){
@@ -80,7 +69,6 @@ public class JwtFilter extends OncePerRequestFilter {
             response.setCharacterEncoding("UTF-8");
 
             this.objectMapper.writeValue(response.getWriter(), errorResponse);
-
             return;
         }
     }

@@ -10,9 +10,6 @@ public class OtpGeneratorService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     public String generateOtp() {
-
-        return String.format(
-                "%06d",
-                this.secureRandom.nextInt(1_000_000));
+        return String.format("%06d", this.secureRandom.nextInt(1_000_000));
     }
 }

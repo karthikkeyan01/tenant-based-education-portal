@@ -12,8 +12,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -36,8 +38,7 @@ public class UserController {
     @ApiResponse(responseCode = "200", description = "Users retrieved successfully.")
     @GetMapping
     @PreAuthorize(SecurityConstants.HAS_SUPER_OR_ORG_ADMIN)
-    public ApiResponseDto<Page<UserResponseDto>> retrieveUsers(
-            @Min(0) @RequestParam(defaultValue = "0") final int page,
+    public ApiResponseDto<Page<UserResponseDto>> retrieveUsers(@Min(0) @RequestParam(defaultValue = "0") final int page,
             @Min(1) @Max(100) @RequestParam(defaultValue = "10") final int size) {
 
         final Page<UserResponseDto> response = this.userService.retrieveUsers(page, size);
@@ -76,8 +77,7 @@ public class UserController {
             @Min(0) @RequestParam(defaultValue = "0") final int page,
             @Min(1) @Max(100) @RequestParam(defaultValue = "10")  final int size) {
 
-        final Page<UserResponseDto> response = this.userService.
-                retrieveUsersByOrganization(organizationId, page, size);
+        final Page<UserResponseDto> response = this.userService.retrieveUsersByOrganization(organizationId, page, size);
 
         return ApiResponseDto.<Page<UserResponseDto>>builder()
                 .code(HttpStatus.OK.value())
@@ -86,8 +86,26 @@ public class UserController {
                 .build();
     }
 
-    @Operation(summary = "Create user",
-            description = "Creates a new user account (inactive by default) and sends an account activation email.")
+    @Operation(summary = "Retrieve individual users",
+            description = "Retrieves a paginated list of all active users who are not associated with any organization. Only the Super Admin can access this endpoint.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Individual users retrieved successfully."),
+            @ApiResponse(responseCode = "401", description = "Authentication required or invalid JWT token."),
+            @ApiResponse(responseCode = "403", description = "Access denied. Only the Super Admin can retrieve individual users.")})
+    @PreAuthorize(SecurityConstants.HAS_SUPER_ADMIN)
+    @GetMapping("/individual")
+    public ApiResponseDto<Page<UserResponseDto>> retrieveIndividualUsers(@Min(0) @RequestParam(defaultValue = "0") final int page,
+            @Min(1) @Max(100) @RequestParam(defaultValue = "10")  final int size) {
+
+        final Page<UserResponseDto> response = this.userService.retrieveIndividualUsers(page, size);
+
+        return ApiResponseDto.<Page<UserResponseDto>>builder()
+                .code(HttpStatus.OK.value())
+                .message("Individual Users retrieved successfully")
+                .data(response)
+                .build();
+    }
+
+    @Operation(summary = "Create user", description = "Creates a new user account (inactive by default) and sends an account activation email.")
     @ApiResponses({@ApiResponse(responseCode = "201", description = "User created successfully."),
             @ApiResponse(responseCode = "409", description = "User email already exists."),
             @ApiResponse(responseCode = "500", description = "Failed to send the account activation email.")})
@@ -112,10 +130,8 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "User not found.")})
     @PreAuthorize(SecurityConstants.HAS_ORG_ADMIN)
     @PutMapping("/{userId}/activate")
-    public ApiResponseDto<Void> activate(
-            @PathVariable final String userId,
-            @Parameter(description = "Set to true to activate the user or false to deactivate the user.")
-            @RequestParam final boolean active) {
+    public ApiResponseDto<Void> activate(@PathVariable final String userId, @Parameter(description = "Set to true to activate the user or false to deactivate the user.")
+    @RequestParam final boolean active) {
 
         this.userService.activate(userId, active);
 
@@ -136,12 +152,9 @@ public class UserController {
     @PreAuthorize(SecurityConstants.HAS_SUPER_ADMIN)
     @PutMapping("/activate")
     public ApiResponseDto<Void> activate(
-            @Parameter(description = "ID of the user or organization to be activated or deactivated.")
-            @RequestParam final String id,
-            @Parameter(description = "Set to true to activate or false to deactivate.")
-            @RequestParam final boolean active,
-            @Parameter(description = "Set to true to manage a user or false to manage an organization.")
-            @RequestParam final boolean isUser) {
+            @Parameter(description = "ID of the user or organization to be activated or deactivated.") @RequestParam final String id,
+            @Parameter(description = "Set to true to activate or false to deactivate.") @RequestParam final boolean active,
+            @Parameter(description = "Set to true to manage a user or false to manage an organization.") @RequestParam final boolean isUser) {
 
         this.userService.activate(id, active, isUser);
 
@@ -166,13 +179,11 @@ public class UserController {
     @PreAuthorize(SecurityConstants.HAS_SUPER_OR_ORG_ADMIN)
     @PostMapping(value = "/bulk-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponseDto<BulkUploadResponseDto> uploadBulk(
-            @Parameter(description = "CSV or Excel (.xlsx) file containing user data.")
-            @RequestParam("file") final MultipartFile file,
+            @Parameter(description = "CSV or Excel (.xlsx) file containing user data.") @RequestParam("file") final MultipartFile file,
             @Parameter(description = "Organization ID. Required only when the authenticated user is a Super Admin.")
             @RequestParam(required = false) final String organizationId){
 
-        final BulkUploadResponseDto response = this.userService
-                .bulkUploadUsers(file, organizationId);
+        final BulkUploadResponseDto response = this.userService.bulkUploadUsers(file, organizationId);
 
         return ApiResponseDto.<BulkUploadResponseDto>builder()
                 .code(HttpStatus.OK.value())
@@ -181,18 +192,17 @@ public class UserController {
                 .build();
     }
 
-    @Operation(summary = "Resend activation email",
-            description = "Generates a new account activation link with token and sends it to the user's email address.")
+    @Operation(summary = "Resend activation email", description = "Generates a new account activation link with token and sends it to the user's email address.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Activation email sent successfully."),
             @ApiResponse(responseCode = "400", description = "Invalid activation email request."),
             @ApiResponse(responseCode = "404", description = "User not found."),
             @ApiResponse(responseCode = "500", description = "Failed to send the activation email.")})
     @PreAuthorize(SecurityConstants.HAS_SUPER_OR_ORG_ADMIN)
-    @PostMapping("/{userId}/resend-activation")
+    @PostMapping("/resend-activation")
     public ApiResponseDto<Void> resendActivationEmail(
-            @PathVariable final String userId) {
+            @Parameter(description = "Email address of the inactive user") @RequestParam @NotBlank @Email final String email) {
 
-        this.userService.resendActivationEmail(userId);
+        this.userService.resendActivationEmail(email);
 
         return ApiResponseDto.<Void>builder()
                 .code(HttpStatus.OK.value())

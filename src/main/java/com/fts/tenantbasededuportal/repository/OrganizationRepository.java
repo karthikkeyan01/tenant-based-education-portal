@@ -9,12 +9,9 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface OrganizationRepository
-        extends JpaRepository<Organization, String> {
+public interface OrganizationRepository extends JpaRepository<Organization, String> {
 
     boolean existsByName(String name);
-
     Page<Organization> findByActiveTrue(Pageable pageable);
-
     Optional<Organization> findByIdAndActiveTrue(String id);
 }

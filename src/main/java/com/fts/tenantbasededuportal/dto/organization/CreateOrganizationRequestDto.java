@@ -21,10 +21,8 @@ public class CreateOrganizationRequestDto {
     @NotBlank
     @Email
     private String orgAdminEmail;
-
     @Schema(description = "First name of the organization administrator.", example = "John")
     private String orgAdminFirstName;
-
     @Schema(description = "Last name of the organization administrator.", example = "Doe")
     private String orgAdminLastName;
 

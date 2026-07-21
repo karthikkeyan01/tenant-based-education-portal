@@ -21,20 +21,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProfileService {
 
     private final UserRepository userRepository;
-
     private final SecurityUtil securityUtil;
-
     private final PasswordEncoder passwordEncoder;
-
     private final AuditService auditService;
-
     private final PermissionService permissionService;
 
     //performs a GET request and fetches the profile of logged-in user.
     @Transactional(readOnly = true)
     public ProfileResponseDto retrieveProfile() {
-        this.permissionService.requirePermission(PermissionConstants.VIEW_PROFILE);
 
+        this.permissionService.requirePermission(PermissionConstants.VIEW_PROFILE);
         final User currentUser = this.securityUtil.getCurrentUser();
 
         return ProfileResponseDto.builder()
@@ -53,64 +49,50 @@ public class ProfileService {
 
     //performs a PUT request and updates profile of logged-in user.
     @Transactional
-    public ProfileResponseDto updateProfile
-            (final UpdateProfileRequestDto request) {
+    public ProfileResponseDto updateProfile(final UpdateProfileRequestDto request) {
 
         this.permissionService.requirePermission(PermissionConstants.UPDATE_PROFILE);
 
         final User currentUser = this.securityUtil.getCurrentUser();
-
+        final boolean previousMfaEnabled = currentUser.getMfaEnabled();
         if (request.getFirstName() != null){
-
             final String firstName = request.getFirstName().trim();
-
             if (firstName.isBlank()){
-
                 throw new BadRequestException("First name cannot be blank.");
             }
-
             currentUser.setFirstName(firstName);
         }
 
         if (request.getLastName() != null) {
-
             final String lastName = request.getLastName().trim();
-
             if (lastName.isBlank()){
-
                 throw new BadRequestException("Last name cannot be blank.");
             }
-
             currentUser.setLastName(lastName);
         }
-
         if (request.getMfaEnabled() != null) {
-
             currentUser.setMfaEnabled(request.getMfaEnabled());
         }
 
         String auditDetails = "Updated user profile.";
-
         if (request.getMfaEnabled() != null) {
-
-            if(request.getMfaEnabled()){
+            if(request.getMfaEnabled() && !previousMfaEnabled){
                 auditDetails +=  " and enabled MFA.";
             }
-            else {
+            else if (!request.getMfaEnabled() && previousMfaEnabled) {
+
                 auditDetails +=  " and disabled MFA.";
             }
         }
 
         final User savedUser = this.userRepository.save(currentUser);
-
         this.auditService.create(
                 AuditRequestDto.builder()
                         .action(AuditActionConstants.UPDATE_PROFILE)
                         .entityAffected(EntityAffectedConstants.USER)
                         .entityId(currentUser.getId())
                         .description(auditDetails)
-                        .build()
-        );
+                        .build());
 
         return ProfileResponseDto.builder()
                 .id(savedUser.getId())
@@ -129,43 +111,28 @@ public class ProfileService {
     //performs a PUT request and changes the password of logged-in user.
     //note needs old password and new password (must match)
     @Transactional
-    public void changeProfilePassword
-            (final ChangePasswordRequestDto request) {
+    public void changeProfilePassword(final ChangePasswordRequestDto request) {
 
         this.permissionService.requirePermission(PermissionConstants.CHANGE_PASSWORD);
 
         final User currentUser = this.securityUtil.getCurrentUser();
-
-        if (!this.passwordEncoder.matches
-                (request.getOldPassword(), currentUser.getPassword())) {
-
-            throw new BadRequestException(
-                    "Old password is incorrect.");
+        if (!this.passwordEncoder.matches(request.getOldPassword(), currentUser.getPassword())) {
+            throw new BadRequestException("Old password is incorrect.");
         }
-
         if (request.getNewPassword() == null) {
-
             throw new BadRequestException("New password is required.");
         }
 
         final String newPassword = request.getNewPassword().trim();
-
         if (newPassword.isBlank()) {
-
             throw new BadRequestException("New password is required.");
         }
-
         if(request.getOldPassword().equals(newPassword)) {
-
-            throw new BadRequestException(
-                    "New password must be different from old password.");
+            throw new BadRequestException("New password must be different from old password.");
         }
 
-        currentUser.setPassword(
-                this.passwordEncoder.encode(newPassword));
-
+        currentUser.setPassword(this.passwordEncoder.encode(newPassword));
         this.userRepository.save(currentUser);
-
         this.auditService.create(
                 AuditRequestDto.builder()
                         .action(AuditActionConstants.CHANGE_PASSWORD)

@@ -15,35 +15,25 @@ import java.util.List;
 public class PermissionService {
 
     private final RolePermissionRepository rolePermissionRepository;
-
     private final SecurityUtil securityUtil;
 
     public void requirePermission(final String permission) {
 
         final User currentUser = this.securityUtil.getCurrentUser();
-
         if(!this.hasPermission(currentUser, permission)){
-
             throw new AccessDeniedException(
                     "You do not have permission to perform this action.");
         }
     }
 
-    private boolean hasPermission(final User user,
-                                  final String permission) {
+    private boolean hasPermission(final User user, final String permission) {
 
-        final List<RolePermission> rolePermissions =
-                this.rolePermissionRepository.findByRole(user.getRole());
-
+        final List<RolePermission> rolePermissions = this.rolePermissionRepository.findByRole(user.getRole());
         for (final RolePermission rolePermission : rolePermissions) {
-
-            if (rolePermission.getPermission()
-                    .getName().equals(permission)) {
-
+            if (rolePermission.getPermission().getName().equals(permission)) {
                 return true;
             }
         }
-
         return false;
     }
 }

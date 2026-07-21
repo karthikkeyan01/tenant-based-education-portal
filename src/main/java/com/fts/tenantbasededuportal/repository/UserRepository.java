@@ -14,31 +14,22 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User,String> {
 
-    Page<User> findByActiveTrueAndIdNot(String userId,
-            Pageable pageable);
-
-    Page<User> findByOrganizationAndActiveTrueAndIdNot(Organization organization,
-            String userId,
-            Pageable pageable);
+    Page<User> findByActiveTrueAndIdNot(String userId, Pageable pageable);
+    Page<User> findByOrganizationAndActiveTrueAndIdNot(Organization organization, String userId, Pageable pageable);
+    Page<User> findByOrganizationAndActiveTrue(Organization organization, Pageable pageable);
+    Page<User> findByOrganizationIsNullAndActiveTrueAndIdNot(String userId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"role", "organization"})
     Optional<User> findByEmail(String email);
-
     @EntityGraph(attributePaths = {"role", "organization"})
     Optional<User> findById(String id);
+    Optional<User> findByIdAndActiveTrue(String id);
+    Optional<User> findByActivationToken(String activationToken);
+    Optional<User> findByResetPasswordToken(String resetPasswordToken);
+    Optional<User> findByEmailAndActiveTrue(String email);
+    Optional<User> findByOrganizationAndRoleName(Organization organization, String roleName);
 
     boolean existsByEmail(String email);
 
     List<User> findByOrganization(Organization organization);
-
-    Optional<User> findByIdAndActiveTrue(String id);
-
-    Page<User> findByOrganizationAndActiveTrue(Organization organization,
-            Pageable pageable);
-
-    Optional<User> findByActivationToken(String activationToken);
-
-    Optional<User> findByResetPasswordToken(String resetPasswordToken);
-
-    Optional<User> findByEmailAndActiveTrue(String email);
 }

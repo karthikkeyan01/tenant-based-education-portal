@@ -9,8 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface RolePermissionRepository
-        extends JpaRepository<RolePermission, String> {
+public interface RolePermissionRepository extends JpaRepository<RolePermission, String> {
 
     @EntityGraph(attributePaths = "permission")
     List<RolePermission> findByRole(Role role);

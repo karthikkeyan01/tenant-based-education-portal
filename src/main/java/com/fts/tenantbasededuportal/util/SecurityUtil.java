@@ -20,43 +20,31 @@ import org.springframework.stereotype.Component;
 public class SecurityUtil {
 
     private final UserRepository userRepository;
-
     private final OrganizationRepository organizationRepository;
-
     private final CustomUserDetailsService customUserDetailsService;
 
     public void setAuthentication(final User user) {
-
-        final UserPrincipal principal =
-                this.customUserDetailsService.loadUserByUsername(user.getEmail());
-
-        final Authentication authentication =
-                new UsernamePasswordAuthenticationToken(
-                        principal,null,principal.getAuthorities());
+        final UserPrincipal principal = this.customUserDetailsService.loadUserByUsername(user.getEmail());
+        final Authentication authentication = new UsernamePasswordAuthenticationToken(principal,
+                null,principal.getAuthorities());
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
     public void clearAuthentication() {
-
         SecurityContextHolder.clearContext();
     }
 
 
     private UserPrincipal getPrincipal() {
-
-        final Authentication authentication = SecurityContextHolder
-                .getContext().getAuthentication();
+        final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null) {
-
             throw new UnauthorizedException("User is not authenticated.");
         }
-
         final Object principal = authentication.getPrincipal();
 
         if (!(principal instanceof UserPrincipal userPrincipal)) {
-
             throw new UnauthorizedException("User is not authenticated.");
         }
 
@@ -64,48 +52,33 @@ public class SecurityUtil {
     }
 
     public String getCurrentUserId() {
-
         final UserPrincipal principal = this.getPrincipal();
-
         return principal.getId();
     }
 
     public String getCurrentEmail() {
-
         final UserPrincipal principal = this.getPrincipal();
-
         return principal.getEmail();
     }
 
     public String getCurrentRole() {
-
         final UserPrincipal principal = this.getPrincipal();
-
         return principal.getRole();
     }
 
     public String getCurrentOrganizationId() {
-
         final UserPrincipal principal = this.getPrincipal();
-
         return principal.getOrganizationId();
     }
 
     public User getCurrentUser() {
-
-        return this.userRepository.findByIdAndActiveTrue(
-                        this.getCurrentUserId()).orElseThrow(() ->
-                        new UnauthorizedException(
+        return this.userRepository.findByIdAndActiveTrue(this.getCurrentUserId()).orElseThrow(() -> new UnauthorizedException(
                                 "Authenticated user not found."));
     }
 
     public Organization getCurrentOrganization() {
-
-        final String organizationId =
-                this.getCurrentOrganizationId();
-
+        final String organizationId = this.getCurrentOrganizationId();
         if (organizationId == null) {
-
             return null;
         }
 
@@ -116,31 +89,22 @@ public class SecurityUtil {
     }
 
     public boolean isSuperAdmin() {
-
-        return RoleConstants.SUPER_ADMIN
-                .equals(this.getCurrentRole());
+        return RoleConstants.SUPER_ADMIN.equals(this.getCurrentRole());
     }
 
     public boolean isOrgAdmin() {
-
-        return RoleConstants.ORG_ADMIN
-                .equals(this.getCurrentRole());
+        return RoleConstants.ORG_ADMIN.equals(this.getCurrentRole());
     }
 
     public boolean isUser(){
-
-        return RoleConstants.USER
-                .equals(this.getCurrentRole());
+        return RoleConstants.USER.equals(this.getCurrentRole());
     }
 
     public boolean isCurrentUser(final String userId) {
-
         return userId != null && this.getCurrentUserId().equals(userId);
     }
 
     public boolean isSameOrganization(final String organizationId) {
-
-        return organizationId != null
-                && organizationId.equals(this.getCurrentOrganizationId());
+        return organizationId != null && organizationId.equals(this.getCurrentOrganizationId());
     }
 }

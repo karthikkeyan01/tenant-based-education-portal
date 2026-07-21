@@ -5,13 +5,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class EmailTemplateService {
 
-    private String buildTemplate(
-            final String title,
-            final String greeting,
-            final String message,
-            final String buttonText,
-            final String buttonLink,
-            final String footer) {
+    private String buildTemplate(final String title, final String greeting, final String message,
+            final String buttonText, final String buttonLink, final String footer) {
 
         return """
             <!DOCTYPE html>
@@ -34,7 +29,6 @@ public class EmailTemplateService {
                             style="background:#2563eb;color:white;padding:25px;font-size:30px;font-weight:bold;letter-spacing:1px;">
 
                             Education Portal
-
                         </td>
                     </tr>
 
@@ -79,51 +73,25 @@ public class EmailTemplateService {
                 </table>
             </body>
             </html>
-            """.formatted(
-                title,
-                greeting,
-                message,
-                buttonLink,
-                buttonText,
-                buttonLink,
-                buttonLink,
-                footer
-        );
+            """.formatted(title, greeting, message, buttonLink, buttonText, buttonLink, buttonLink, footer);
     }
 
-    public String buildActivationTemplate(
-            final String activationLink,
-            final int expiryHours) {
+    public String buildActivationTemplate(final String activationLink, final int expiryHours) {
 
-        return this.buildTemplate(
-                "Activate Your Account",
-                "Hello!",
-                "Your account has been created successfully. Click the button below to activate your account.",
-                "Activate Account",
-                activationLink,
-                "This activation link expires in " + expiryHours + " hours."
-        );
+        return this.buildTemplate("Activate Your Account", "Hello!", "Your account has been created successfully.<br><br>"
+                        + "This activation link expires in <strong>" + expiryHours + " hours</strong>.<br><br>" + "Click the button below to activate your account.",
+                "Activate Account", activationLink, "If you did not request this account, you can safely ignore this email.");
     }
 
-    public String buildForgotPasswordTemplate(
-            final String resetLink,
-            final int expiryMinutes) {
+    public String buildForgotPasswordTemplate(final String resetLink, final int expiryMinutes) {
 
-        return this.buildTemplate(
-                "Reset Your Password",
-                "Hello!",
+        return this.buildTemplate("Reset Your Password", "Hello!",
                 "We received a request to reset your password. Click the button below to continue.",
-                "Reset Password",
-                resetLink,
-                "This reset link expires in " + expiryMinutes + " minutes."
-        );
+                "Reset Password", resetLink, "This reset link expires in " + expiryMinutes + " minutes.");
     }
 
-    public String buildSuperAdminTemplate(
-            final String email,
-            final String temporaryPassword,
-            final String resetLink,
-            final int expiryMinutes) {
+    public String buildSuperAdminTemplate(final String email, final String temporaryPassword, final String resetLink,
+                                          final int expiryMinutes) {
 
         final String message = """
             Your Super Administrator account has been created.<br><br>
@@ -132,24 +100,13 @@ public class EmailTemplateService {
             <strong>Temporary Password:</strong> %s<br><br>
 
             For security reasons, we recommend changing your password immediately.
-            """.formatted(
-                email,
-                temporaryPassword
-        );
+            """.formatted(email, temporaryPassword);
 
-        return this.buildTemplate(
-                "Hello!",
-                "Hello!",
-                message,
-                "Reset Password",
-                resetLink,
-                "This reset link expires in " + expiryMinutes + " minutes."
-        );
+        return this.buildTemplate("Your Super Administrator Account", "Hello!", message, "Reset Password", resetLink,
+                "This reset link expires in " + expiryMinutes + " minutes.");
     }
 
-    public String buildOtpTemplate(
-            final String otp,
-            final int expiryMinutes) {
+    public String buildOtpTemplate(final String otp, final int expiryMinutes) {
 
         return """
             <!DOCTYPE html>
@@ -188,29 +145,33 @@ public class EmailTemplateService {
                             <p>Hello!</p>
 
                             <p>
-                                Use the verification code below to complete your sign in. Do not share this code with anyone.
-                            </p>
-
-                            <div style="
-                                    margin:40px 0;
-                                    padding:20px;
-                                    background:#eff6ff;
-                                    border:2px dashed #2563eb;
-                                    border-radius:8px;
-                                    text-align:center;
-                                    font-size:40px;
-                                    font-weight:bold;
-                                    letter-spacing:10px;
-                                    color:#2563eb;">
-
-                                %s
-
-                            </div>
-
-                            <p style="text-align:center;">
-                                This verification code expires in
-                                <strong>%d minutes</strong>.
-                            </p>
+                                        Use the verification code below to complete your sign in.
+                                    </p>
+                                    <p style="
+                                            text-align:center;
+                                            font-size:16px;
+                                            margin:25px 0;
+                                            color:#dc2626;
+                                            font-weight:bold;">
+                                        This verification code expires in
+                                        <strong>%d minutes</strong>.
+                                    </p>
+                                    <div style="
+                                            margin:30px 0 40px;
+                                            padding:20px;
+                                            background:#eff6ff;
+                                            border:2px dashed #2563eb;
+                                            border-radius:8px;
+                                            text-align:center;
+                                            font-size:40px;
+                                            font-weight:bold;
+                                            letter-spacing:10px;
+                                            color:#2563eb;">
+                                        %s
+                                    </div>
+                                    <p style="text-align:center;color:#6b7280;margin-top:0;">
+                                        For your security, do not share this code with anyone.
+                                    </p>
 
                             <hr style="margin:35px 0;border:none;border-top:1px solid #e5e7eb;">
 
@@ -225,10 +186,7 @@ public class EmailTemplateService {
                 </table>
             </body>
             </html>
-            """.formatted(
-                otp,
-                expiryMinutes
-        );
+            """.formatted(expiryMinutes, otp);
     }
 
 }

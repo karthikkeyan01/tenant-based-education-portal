@@ -48,8 +48,7 @@ public class ProfileController {
             @ApiResponse(responseCode = "400", description = "Invalid profile details.")})
     @PreAuthorize(SecurityConstants.IS_AUTHENTICATED)
     @PutMapping
-    public ApiResponseDto<ProfileResponseDto> updateProfile(
-            @Valid @RequestBody final UpdateProfileRequestDto request) {
+    public ApiResponseDto<ProfileResponseDto> updateProfile(@Valid @RequestBody final UpdateProfileRequestDto request) {
 
         final ProfileResponseDto response = this.profileService.updateProfile(request);
 
@@ -66,8 +65,7 @@ public class ProfileController {
             @ApiResponse(responseCode = "400", description = "Invalid password details.")})
     @PreAuthorize(SecurityConstants.IS_AUTHENTICATED)
     @PutMapping("/change-password")
-    public ApiResponseDto<Void> changePassword(
-            @Valid @RequestBody final ChangePasswordRequestDto request) {
+    public ApiResponseDto<Void> changePassword(@Valid @RequestBody final ChangePasswordRequestDto request) {
 
         this.profileService.changeProfilePassword(request);
 

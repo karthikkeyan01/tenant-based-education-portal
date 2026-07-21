@@ -23,9 +23,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleMissingParameter(
-            final MissingServletRequestParameterException exception,
-            final HttpServletRequest request) {
+    public ErrorResponse handleMissingParameter(final MissingServletRequestParameterException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -38,8 +36,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErrorResponse handleResourceNotFoundException(
-            final ResourceNotFoundException exception, final HttpServletRequest request){
+    public ErrorResponse handleResourceNotFoundException(final ResourceNotFoundException exception, final HttpServletRequest request){
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -52,8 +49,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleBadRequestException(
-            final BadRequestException exception, final HttpServletRequest request) {
+    public ErrorResponse handleBadRequestException(final BadRequestException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -66,8 +62,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UnauthorizedException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public ErrorResponse handleUnauthorizedException(
-            final UnauthorizedException exception, final HttpServletRequest request) {
+    public ErrorResponse handleUnauthorizedException(final UnauthorizedException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -80,8 +75,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public ErrorResponse handleAccessDeniedException(
-            final AccessDeniedException exception, final HttpServletRequest request) {
+    public ErrorResponse handleAccessDeniedException(final AccessDeniedException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -94,11 +88,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleValidation(
-            final MethodArgumentNotValidException exception, final HttpServletRequest request) {
+    public ErrorResponse handleValidation(final MethodArgumentNotValidException exception, final HttpServletRequest request) {
 
         final StringBuilder builder = new StringBuilder();
-
         for (final FieldError error : exception.getBindingResult().getFieldErrors()) {
 
             builder.append(error.getField())
@@ -118,8 +110,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleInvalidJson(
-            final HttpMessageNotReadableException exception, final HttpServletRequest request) {
+    public ErrorResponse handleInvalidJson(final HttpMessageNotReadableException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -132,8 +123,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ErrorResponse handleConflictException(
-            final ConflictException exception, final HttpServletRequest request) {
+    public ErrorResponse handleConflictException(final ConflictException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -146,8 +136,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EmailDeliveryException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ErrorResponse handleEmailDeliveryException(
-            final EmailDeliveryException exception, final HttpServletRequest request) {
+    public ErrorResponse handleEmailDeliveryException(final EmailDeliveryException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -160,8 +149,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccountInactiveException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public ErrorResponse handleAccountInactiveException(
-            final AccountInactiveException exception, final HttpServletRequest request) {
+    public ErrorResponse handleAccountInactiveException(final AccountInactiveException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -174,11 +162,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleConstraintViolation(
-            final ConstraintViolationException exception, final HttpServletRequest request) {
-
+    public ErrorResponse handleConstraintViolation(final ConstraintViolationException exception, final HttpServletRequest request) {
         final StringBuilder builder = new StringBuilder();
-
         for (final ConstraintViolation<?> violation : exception.getConstraintViolations()) {
 
             builder.append(violation.getMessage())
@@ -196,8 +181,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ErrorResponse handleDataIntegrityViolation(
-            final DataIntegrityViolationException exception, final HttpServletRequest request) {
+    public ErrorResponse handleDataIntegrityViolation(final DataIntegrityViolationException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -210,8 +194,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleIllegalArgument(
-            final IllegalArgumentException exception, final HttpServletRequest request) {
+    public ErrorResponse handleIllegalArgument(final IllegalArgumentException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -224,8 +207,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UsernameNotFoundException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public ErrorResponse handleUsernameNotFound(
-            final UsernameNotFoundException exception, final HttpServletRequest request) {
+    public ErrorResponse handleUsernameNotFound(final UsernameNotFoundException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -238,8 +220,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public ErrorResponse handleBadCredentials(
-            final BadCredentialsException exception, final HttpServletRequest request) {
+    public ErrorResponse handleBadCredentials(final BadCredentialsException exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
@@ -252,8 +233,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ErrorResponse handleException(
-            final Exception exception, final HttpServletRequest request) {
+    public ErrorResponse handleException(final Exception exception, final HttpServletRequest request) {
 
         return ErrorResponse.builder()
                 .timestamp(Instant.now())

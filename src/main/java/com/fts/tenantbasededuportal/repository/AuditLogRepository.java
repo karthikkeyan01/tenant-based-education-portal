@@ -12,7 +12,6 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
 
     @EntityGraph(attributePaths = "user")
     Page<AuditLog> findAll(Pageable pageable);
-
     @EntityGraph(attributePaths = "user")
     Page<AuditLog> findByUser_Id(String userId, Pageable pageable);
 }

@@ -21,10 +21,6 @@ public class LoginResponseDto {
     @Schema(description = "Role assigned to the authenticated user.", example = "USER")
     private String role;
 
-    @Schema(description = "Indicates whether multi-factor authentication is required to complete the login process.",
-            example = "true")
+    @Schema(description = "Indicates whether multi-factor authentication is required to complete the login process.", example = "true")
     private Boolean mfaRequired;
-
-    @Schema(description = "Operation result message.", example = "Login successful.")
-    private String message;
 }

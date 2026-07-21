@@ -22,22 +22,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuditService {
 
     private final AuditLogRepository auditLogRepository;
-
     private final SecurityUtil securityUtil;
-
     private final HttpServletRequest httpRequest;
-
     private final PermissionService permissionService;
-
     private final UserRepository userRepository;
 
     @Transactional
     public void create(final AuditRequestDto request) {
 
         final User currentUser = this.securityUtil.getCurrentUser();
-
         final String forwardedIp = this.httpRequest.getHeader("X-Forwarded-For");
-
         final String ipAddress = (forwardedIp == null || forwardedIp.isBlank())
                 ? this.httpRequest.getRemoteAddr()
                 : forwardedIp;
@@ -62,15 +56,11 @@ public class AuditService {
 
         this.permissionService.requirePermission(PermissionConstants.VIEW_AUDIT_LOGS);
 
-        final Page<AuditLog> auditLogs =
-                this.auditLogRepository.findAll(PageRequest.of
-                        (page, size,
-                                Sort.by("createdAt").descending()));
+        final Page<AuditLog> auditLogs = this.auditLogRepository.findAll(PageRequest.of(page, size,
+                Sort.by("createdAt").descending()));
 
         return auditLogs.map(auditLog -> {
-
             final User user = auditLog.getUser();
-
             return AuditResponseDto.builder()
                     .id(auditLog.getId())
                     .userId(user.getId())
@@ -89,29 +79,16 @@ public class AuditService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AuditResponseDto> retrieveAuditLogsByUser(
-            final String userId,
-            final int page,
-            final int size) {
+    public Page<AuditResponseDto> retrieveAuditLogsByUser(final String userId, final int page, final int size) {
 
         this.permissionService.requirePermission(PermissionConstants.VIEW_AUDIT_LOGS);
+        this.userRepository.findById(userId).orElseThrow(()-> new ResourceNotFoundException("User not found"));
 
-        this.userRepository.findById(userId).orElseThrow(()->
-                new ResourceNotFoundException(
-                        "User not found"));
-
-        final Page<AuditLog> auditLogs =
-                this.auditLogRepository.findByUser_Id(
-                        userId,
-                        PageRequest.of(
-                                page,
-                                size,
-                                Sort.by("createdAt").descending()));
+        final Page<AuditLog> auditLogs = this.auditLogRepository.findByUser_Id(userId,
+                        PageRequest.of(page, size, Sort.by("createdAt").descending()));
 
         return auditLogs.map(auditLog -> {
-
             final User user = auditLog.getUser();
-
             return AuditResponseDto.builder()
                     .id(auditLog.getId())
                     .userId(user.getId())

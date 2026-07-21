@@ -18,16 +18,13 @@ public class ProfileResponseDto {
 
     @Schema(description = "User's email address.", example = "john.doe@example.com")
     private String email;
-
     @Schema(description = "User's first name.", example = "John")
     private String firstName;
-
     @Schema(description = "User's last name.", example = "Doe")
     private String lastName;
 
     @Schema(description = "Name of the role assigned to the user.", example = "USER")
     private String roleName;
-
     @Schema(description = "Name of the organization the user belongs to.", example = "ABC University")
     private String organizationName;
 

@@ -8,9 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class TenantBasedEduPortalApplication {
 
 	public static void main(String[] args) {
-
 		DatabaseInitializer.initializeDatabase();
-
 		SpringApplication.run(TenantBasedEduPortalApplication.class, args);
 	}
 

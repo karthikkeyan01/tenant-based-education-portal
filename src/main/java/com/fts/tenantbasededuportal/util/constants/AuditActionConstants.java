@@ -29,4 +29,6 @@ public final class AuditActionConstants {
     public static final String UPDATE_ORGANIZATION = "UPDATE_ORGANIZATION";
     public static final String ACTIVATE_ORGANIZATION = "ACTIVATE_ORGANIZATION";
     public static final String DEACTIVATE_ORGANIZATION = "DEACTIVATE_ORGANIZATION";
+    public static final String UPDATE_ORG_ADMIN_EMAIL = "UPDATE_ORGADMIN_EMAIL";
+    public static final String REPLACE_ORG_ADMIN = "REPLACE_ORG_ADMIN";
 }

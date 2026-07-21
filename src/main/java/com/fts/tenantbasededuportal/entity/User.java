@@ -21,19 +21,16 @@ public class User extends BaseEntity{
 
     @Column(nullable = false, unique = true)
     private String email;
-
     @Column(nullable = false)
     @JsonIgnore
     private String password;
 
     private String firstName;
-
     private String lastName;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;
@@ -44,25 +41,21 @@ public class User extends BaseEntity{
 
     @JsonIgnore
     private String activationToken;
-
     @JsonIgnore
     private Instant activationTokenExpiresAt;
 
     @JsonIgnore
     private String resetPasswordToken;
-
     @JsonIgnore
     private Instant resetPasswordTokenExpiresAt;
 
     @Column(nullable = false)
     @Builder.Default
     private Boolean mfaEnabled = false;
-
     @JsonIgnore
     private String otp;
 
     @JsonIgnore
     private Instant otpExpiresAt;
-
     private Instant lastLoginAt;
 }

@@ -13,7 +13,6 @@ public class UpdateProfileRequestDto {
 
     @Schema(description = "User's first name.", example = "John")
     private String firstName;
-
     @Schema(description = "User's last name.", example = "Doe")
     private String lastName;
 

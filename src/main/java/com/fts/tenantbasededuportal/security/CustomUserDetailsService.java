@@ -10,26 +10,21 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class CustomUserDetailsService
-        implements UserDetailsService {
+public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
     @Override
     public UserPrincipal loadUserByUsername(final String email){
 
-        final User user = this.userRepository.findByEmail(email)
-                        .orElseThrow(() -> new UsernameNotFoundException(
-                                        "User not found : " + email));
+        final User user = this.userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException(
+                "User not found : " + email));
 
         if (!user.getActive()) {
-
             throw new AccountInactiveException("User account is inactive");
         }
 
-        if (user.getOrganization() != null
-                && !user.getOrganization().getActive()){
-
+        if (user.getOrganization() != null && !user.getOrganization().getActive()){
             throw new AccountInactiveException("Organization is Inactive");
         }
 
@@ -46,18 +41,14 @@ public class CustomUserDetailsService
 
     public UserPrincipal loadUserById(final String id){
 
-        final User user = this.userRepository.findById(id)
-                .orElseThrow(() -> new UsernameNotFoundException
-                        ("User not found : " + id));
+        final User user = this.userRepository.findById(id).orElseThrow(() -> new UsernameNotFoundException(
+                "User not found : " + id));
 
         if (!user.getActive()) {
-
             throw new AccountInactiveException("User account is inactive");
         }
 
-        if (user.getOrganization() != null
-                && !user.getOrganization().getActive()){
-
+        if (user.getOrganization() != null && !user.getOrganization().getActive()){
             throw new AccountInactiveException("Organization is inactive");
         }
 
