@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,6 +21,7 @@ import java.time.Instant;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
@@ -56,6 +58,7 @@ public class JwtFilter extends OncePerRequestFilter {
         }
         catch (final JwtException | IllegalArgumentException exception){
 
+            log.warn("JWT authentication failed for {} '{}'.", request.getMethod(), request.getRequestURI(), exception);
             final ErrorResponse errorResponse = ErrorResponse.builder()
                     .timestamp(Instant.now())
                     .status(HttpServletResponse.SC_UNAUTHORIZED)
@@ -69,7 +72,6 @@ public class JwtFilter extends OncePerRequestFilter {
             response.setCharacterEncoding("UTF-8");
 
             this.objectMapper.writeValue(response.getWriter(), errorResponse);
-            return;
         }
     }
 }

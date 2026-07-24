@@ -12,12 +12,14 @@ import com.fts.tenantbasededuportal.util.constants.AuditActionConstants;
 import com.fts.tenantbasededuportal.util.constants.EntityAffectedConstants;
 import com.fts.tenantbasededuportal.util.constants.PermissionConstants;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProfileService {
 
     private final UserRepository userRepository;
@@ -30,8 +32,10 @@ public class ProfileService {
     @Transactional(readOnly = true)
     public ProfileResponseDto retrieveProfile() {
 
+        log.info("Profile retrieval requested.");
         this.permissionService.requirePermission(PermissionConstants.VIEW_PROFILE);
         final User currentUser = this.securityUtil.getCurrentUser();
+        log.info("Profile retrieved successfully.");
 
         return ProfileResponseDto.builder()
                 .id(currentUser.getId())
@@ -51,6 +55,7 @@ public class ProfileService {
     @Transactional
     public ProfileResponseDto updateProfile(final UpdateProfileRequestDto request) {
 
+        log.info("Profile update requested.");
         this.permissionService.requirePermission(PermissionConstants.UPDATE_PROFILE);
 
         final User currentUser = this.securityUtil.getCurrentUser();
@@ -58,6 +63,7 @@ public class ProfileService {
         if (request.getFirstName() != null){
             final String firstName = request.getFirstName().trim();
             if (firstName.isBlank()){
+                log.warn("Profile update failed because the first name was blank.");
                 throw new BadRequestException("First name cannot be blank.");
             }
             currentUser.setFirstName(firstName);
@@ -66,6 +72,7 @@ public class ProfileService {
         if (request.getLastName() != null) {
             final String lastName = request.getLastName().trim();
             if (lastName.isBlank()){
+                log.warn("Profile update failed because the last name was blank.");
                 throw new BadRequestException("Last name cannot be blank.");
             }
             currentUser.setLastName(lastName);
@@ -74,14 +81,14 @@ public class ProfileService {
             currentUser.setMfaEnabled(request.getMfaEnabled());
         }
 
-        String auditDetails = "Updated user profile.";
+        final StringBuilder auditDetails = new StringBuilder("Updated user profile.");
         if (request.getMfaEnabled() != null) {
-            if(request.getMfaEnabled() && !previousMfaEnabled){
-                auditDetails +=  " and enabled MFA.";
+            if (request.getMfaEnabled() && !previousMfaEnabled){
+                auditDetails.append(" and enabled MFA.");
             }
             else if (!request.getMfaEnabled() && previousMfaEnabled) {
 
-                auditDetails +=  " and disabled MFA.";
+                auditDetails.append(" and disabled MFA.");
             }
         }
 
@@ -91,8 +98,9 @@ public class ProfileService {
                         .action(AuditActionConstants.UPDATE_PROFILE)
                         .entityAffected(EntityAffectedConstants.USER)
                         .entityId(currentUser.getId())
-                        .description(auditDetails)
+                        .description(auditDetails.toString())
                         .build());
+        log.info("Profile updated successfully.");
 
         return ProfileResponseDto.builder()
                 .id(savedUser.getId())
@@ -113,21 +121,26 @@ public class ProfileService {
     @Transactional
     public void changeProfilePassword(final ChangePasswordRequestDto request) {
 
+        log.info("Password change requested.");
         this.permissionService.requirePermission(PermissionConstants.CHANGE_PASSWORD);
 
         final User currentUser = this.securityUtil.getCurrentUser();
         if (!this.passwordEncoder.matches(request.getOldPassword(), currentUser.getPassword())) {
+            log.warn("Password change failed because the old password was incorrect.");
             throw new BadRequestException("Old password is incorrect.");
         }
         if (request.getNewPassword() == null) {
+            log.warn("Password change failed because no new password was provided.");
             throw new BadRequestException("New password is required.");
         }
 
         final String newPassword = request.getNewPassword().trim();
         if (newPassword.isBlank()) {
+            log.warn("Password change failed because the new password was blank.");
             throw new BadRequestException("New password is required.");
         }
-        if(request.getOldPassword().equals(newPassword)) {
+        if (request.getOldPassword().equals(newPassword)) {
+            log.warn("Password change failed because the new password matches the old password.");
             throw new BadRequestException("New password must be different from old password.");
         }
 
@@ -140,5 +153,6 @@ public class ProfileService {
                         .entityId(currentUser.getId())
                         .description("User changed their password.")
                         .build());
+        log.info("Password changed successfully.");
     }
 }

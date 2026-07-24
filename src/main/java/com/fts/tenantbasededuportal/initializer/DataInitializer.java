@@ -16,6 +16,7 @@ import com.fts.tenantbasededuportal.util.constants.ApplicationConstants;
 import com.fts.tenantbasededuportal.util.constants.PermissionConstants;
 import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +29,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class DataInitializer implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
@@ -37,21 +39,25 @@ public class DataInitializer implements CommandLineRunner {
     private final PasswordGeneratorService passwordGeneratorService;
     private final TokenGeneratorService tokenGeneratorService;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService  emailService;
+    private final EmailService emailService;
 
     @Value("${app.base-url}")
     private String baseUrl;
 
     @Override
     @Transactional
-    public void run(String... args){
+    public void run(final String... args){
+        log.info("Database initialization started.");
         this.initializeRoles();
         this.initializePermissions();
         this.initializeRolePermissions();
         this.initializeSuperAdmin();
+        log.info("Database initialization completed successfully.");
     }
 
     private void initializeRoles(){
+
+        log.info("Initializing default roles.");
         final String[] roles = {
                 RoleConstants.SUPER_ADMIN,
                 RoleConstants.ORG_ADMIN,
@@ -69,6 +75,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initializePermissions(){
 
+        log.info("Initializing default permissions.");
         final String[] permissions = {
                 PermissionConstants.VIEW_USERS,
                 PermissionConstants.CREATE_USER,
@@ -96,6 +103,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initializeRolePermissions(){
 
+        log.info("Initializing role permissions.");
         final Role superAdmin = this.roleRepository.findByName(RoleConstants.SUPER_ADMIN).orElseThrow();
         final Role orgAdmin = this.roleRepository.findByName(RoleConstants.ORG_ADMIN).orElseThrow();
         final Role user = this.roleRepository.findByName(RoleConstants.USER).orElseThrow();
@@ -155,10 +163,13 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void initializeSuperAdmin(){
+
         if (this.userRepository.existsByEmail(ApplicationConstants.SUPER_ADMIN_EMAIL)){
+            log.info("Super Admin already exists. Skipping initialization.");
             return;
         }
 
+        log.info("Creating Super Admin account.");
         final  Role superAdminRole = this.roleRepository.findByName(RoleConstants.SUPER_ADMIN).orElseThrow(() ->
                         new IllegalStateException("Super_Admin role not found."));
         final String generatedPassword = this.passwordGeneratorService.generatePassword(ApplicationConstants.GENERATED_PASSWORD_LENGTH);
@@ -184,11 +195,12 @@ public class DataInitializer implements CommandLineRunner {
         final String resetPasswordLink = this.baseUrl + "/auth/reset-password?token=" + resetPasswordToken;
 
         try{
-            this.emailService.sendSuperAdminCredentialsMail(savedUser.getEmail(),
-                    generatedPassword, resetPasswordLink);
+            this.emailService.sendSuperAdminCredentialsMail(savedUser.getEmail(), generatedPassword, resetPasswordLink);
+            log.info("Super Admin account initialized successfully.");
         }
-        catch(final Exception e){
-            throw new EmailDeliveryException("Failed to send SuperAdmin Credentials email.");
+        catch (final EmailDeliveryException exception) {
+            log.error("Failed to send Super Admin credentials email.", exception);
+            throw new EmailDeliveryException("Failed to send Super Admin credentials email.");
         }
 
     }

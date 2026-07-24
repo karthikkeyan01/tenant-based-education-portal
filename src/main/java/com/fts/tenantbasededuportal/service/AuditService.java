@@ -11,6 +11,7 @@ import com.fts.tenantbasededuportal.repository.AuditLogRepository;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuditService {
 
     private final AuditLogRepository auditLogRepository;
@@ -54,10 +56,12 @@ public class AuditService {
     @Transactional(readOnly = true)
     public Page<AuditResponseDto> retrieveAuditLogs(final int page, final int size) {
 
+        log.info("Audit log retrieval requested.");
         this.permissionService.requirePermission(PermissionConstants.VIEW_AUDIT_LOGS);
 
         final Page<AuditLog> auditLogs = this.auditLogRepository.findAll(PageRequest.of(page, size,
                 Sort.by("createdAt").descending()));
+        log.info("Audit logs retrieved successfully.");
 
         return auditLogs.map(auditLog -> {
             final User user = auditLog.getUser();
@@ -81,11 +85,13 @@ public class AuditService {
     @Transactional(readOnly = true)
     public Page<AuditResponseDto> retrieveAuditLogsByUser(final String userId, final int page, final int size) {
 
+        log.info("Audit log retrieval requested for user ID '{}'.", userId);
         this.permissionService.requirePermission(PermissionConstants.VIEW_AUDIT_LOGS);
         this.userRepository.findById(userId).orElseThrow(()-> new ResourceNotFoundException("User not found"));
 
         final Page<AuditLog> auditLogs = this.auditLogRepository.findByUser_Id(userId,
                         PageRequest.of(page, size, Sort.by("createdAt").descending()));
+        log.info("Audit logs retrieved successfully for user ID '{}'.", userId);
 
         return auditLogs.map(auditLog -> {
             final User user = auditLog.getUser();

@@ -16,6 +16,7 @@ import com.fts.tenantbasededuportal.util.constants.*;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,7 @@ import java.time.temporal.ChronoUnit;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrganizationService {
 
     private final OrganizationRepository organizationRepository;
@@ -52,17 +54,18 @@ public class OrganizationService {
     @Transactional
     public CreateOrganizationResponseDto createOrganization(final CreateOrganizationRequestDto request) {
 
+        log.info("Organization creation requested.");
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("You are not allowed to perform this action");
         }
         this.permissionService.requirePermission(PermissionConstants.CREATE_ORGANIZATION);
 
-        if (this.organizationRepository.existsByName(
-                request.getOrganizationName())) {
+        if (this.organizationRepository.existsByName(request.getOrganizationName())) {
+            log.warn("Organization creation failed because organization '{}' already exists.", request.getOrganizationName());
             throw new ConflictException("Organization already exists.");
         }
-        if (this.userRepository.existsByEmail(
-                request.getOrgAdminEmail())){
+        if (this.userRepository.existsByEmail(request.getOrgAdminEmail())){
+            log.warn("Organization creation failed because user '{}' already exists.", request.getOrgAdminEmail());
             throw new ConflictException("User already exists.");
         }
 
@@ -88,6 +91,7 @@ public class OrganizationService {
                                 + savedOrganization.getName()
                                 + " along with it's admin")
                         .build());
+        log.info("Organization '{}' created successfully with administrator '{}'.", savedOrganization.getName(), savedUser.getEmail());
 
         return CreateOrganizationResponseDto.builder()
                 .organizationId(savedOrganization.getId())
@@ -106,6 +110,7 @@ public class OrganizationService {
     @Transactional(readOnly = true)
     public Page<OrganizationResponseDto> retrieveAllOrganizations(final int page, final int size) {
 
+        log.info("Organization retrieval requested.");
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("Only super admin can view organizations");
         }
@@ -114,6 +119,7 @@ public class OrganizationService {
         final Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         final Page<Organization> organizations = this.organizationRepository.findByActiveTrue(pageable);
 
+        log.info("Organizations retrieved successfully.");
         return organizations.map( organization ->
                 OrganizationResponseDto.builder()
                         .id(organization.getId())
@@ -128,14 +134,18 @@ public class OrganizationService {
     @Transactional(readOnly = true)
     public OrganizationResponseDto retrieveOrganizationById(final String id) {
 
+        log.info("Organization retrieval requested for organization ID: '{}'.",id);
         if (!this.securityUtil.isSuperAdmin()){
-            throw new UnauthorizedException(
-                    "Only super admin can view organization");
+            throw new UnauthorizedException("Only super admin can view organization");
         }
         this.permissionService.requirePermission(PermissionConstants.VIEW_ORGANIZATIONS);
 
-        final Organization organization = this.organizationRepository.findByIdAndActiveTrue(id).orElseThrow(() ->
-                new ResourceNotFoundException("Organization not found"));
+        final Organization organization = this.organizationRepository.findByIdAndActiveTrue(id).orElseThrow(() -> {
+            log.warn("Organization retrieval failed because organization ID '{}' was not found.", id);
+            return new ResourceNotFoundException("Organization not found");});
+
+        log.info("Organization '{}' retrieved successfully.", organization.getId());
+
         return OrganizationResponseDto.builder()
                 .id(organization.getId())
                 .name(organization.getName())
@@ -149,22 +159,28 @@ public class OrganizationService {
     @Transactional
     public OrganizationResponseDto updateOrganizationById(final String id, final OrganizationRequestDto request) {
 
+        log.info("Organization update requested for organization ID '{}'.", id);
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("Only super admin can update organization");
         }
         this.permissionService.requirePermission(PermissionConstants.UPDATE_ORGANIZATION);
 
-        final Organization organization = this.organizationRepository.findByIdAndActiveTrue(id).orElseThrow(() ->
-                new ResourceNotFoundException("Organization not found"));
+        final Organization organization = this.organizationRepository.findByIdAndActiveTrue(id).orElseThrow(() ->{
+            log.warn("Organization update failed because organization ID '{}' was not found.", id);
+            return new ResourceNotFoundException("Organization not found");});
+
         if (request.getName() == null || request.getName().isBlank()) {
+            log.warn("Organization update failed because no organization name was provided.");
             throw new BadRequestException("Organization name is required");
         }
 
         final String organizationName = request.getName().trim();
         if (organization.getName().equalsIgnoreCase(organizationName)) {
+            log.warn("Organization update failed because organization '{}' already has the name '{}'.", organization.getId(), organizationName);
             throw new ConflictException("Cannot update to same name");
         }
         if(this.organizationRepository.existsByName(organizationName)) {
+            log.warn("Organization update failed because organization name '{}' already exists.", organizationName);
             throw new ConflictException("Organization name already exists");
         }
 
@@ -179,6 +195,7 @@ public class OrganizationService {
                         .description("Updated organization: "
                                 + savedOrganization.getName())
                         .build());
+        log.info("Organization '{}' updated successfully.", savedOrganization.getId());
 
         return OrganizationResponseDto.builder()
                 .id(savedOrganization.getId())

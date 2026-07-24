@@ -16,6 +16,7 @@ import com.fts.tenantbasededuportal.util.constants.AuditActionConstants;
 import com.fts.tenantbasededuportal.util.constants.EntityAffectedConstants;
 import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,7 @@ import java.time.temporal.ChronoUnit;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -50,7 +52,10 @@ public class AuthService {
     @Transactional
     public void register(final RegisterRequestDto request){
 
+        log.info("Registration requested for email: {}", request.getEmail());
+
         if (this.userRepository.existsByEmail(request.getEmail())){
+            log.warn("Registration failed because email '{}' already exists.", request.getEmail());
             throw new ConflictException("Email already exists");
         }
 
@@ -83,6 +88,7 @@ public class AuthService {
                             .entityId(savedUser.getId())
                             .description("Individual user registered.")
                             .build());
+            log.info("User '{}' registered successfully with ID {}.", savedUser.getEmail(), savedUser.getId());
         }
         finally {
             this.securityUtil.clearAuthentication();
@@ -91,6 +97,7 @@ public class AuthService {
 
     public LoginResponseDto login(final LoginRequestDto request){
 
+        log.info("Login requested for email: {}", request.getEmail());
         final Authentication authentication = this.authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
                             request.getEmail(), request.getPassword()));
 
@@ -117,6 +124,7 @@ public class AuthService {
                                 .entityId(user.getId())
                                 .description("OTP sent for login.")
                                 .build());
+                log.info("OTP generated and sent to '{}' for login verification.", user.getEmail());
 
                 return LoginResponseDto.builder()
                         .email(user.getEmail())
@@ -140,6 +148,7 @@ public class AuthService {
                     .description("User logged in.")
                     .build());
             final String token = this.jwtService.generateToken(userPrincipal);
+            log.info("User '{}' logged in successfully.", user.getEmail());
 
             return LoginResponseDto.builder()
                     .accessToken(token)
@@ -156,24 +165,29 @@ public class AuthService {
     @Transactional
     public LoginResponseDto verifyOtp(final String email, final String otp){
 
-        final User user = this.userRepository.findByEmailAndActiveTrue(email).orElseThrow(() -> new UnauthorizedException(
-                        "Invalid email or OTP."));
+        log.info("OTP verification requested for email: {}", email);
+        final User user = this.userRepository.findByEmailAndActiveTrue(email).orElseThrow(() ->{
+            log.warn("OTP verification failed because no active user was found for email '{}'.", email);
+            return new UnauthorizedException("Invalid email or OTP.");});
 
         if (!Boolean.TRUE.equals(user.getMfaEnabled())) {
+            log.warn("OTP verification failed because MFA is not enabled for '{}'.", email);
             throw new BadRequestException("MFA is not enabled for this user.");
         }
         if (user.getOtp() == null || user.getOtpExpiresAt() == null) {
+            log.warn("OTP verification failed because no OTP was generated for '{}'.", email);
             throw new BadRequestException("No OTP has been generated.");
         }
         if (Instant.now().isAfter(user.getOtpExpiresAt())) {
             user.setOtp(null);
             user.setOtpExpiresAt(null);
             this.userRepository.save(user);
-
+            log.warn("OTP verification failed because the OTP expired for '{}'.", email);
             throw new BadRequestException("OTP has expired");
         }
 
         if (!this.passwordEncoder.matches(otp, user.getOtp())) {
+            log.warn("OTP verification failed because an invalid OTP was provided for '{}'.", email);
             throw new BadRequestException("Invalid OTP");
         }
 
@@ -201,6 +215,7 @@ public class AuthService {
                             .description("User logged in using MFA.")
                             .build());
             final String token = this.jwtService.generateToken(principal);
+            log.info("User '{}' logged in successfully using MFA.", savedUser.getEmail());
 
             return LoginResponseDto.builder()
                     .accessToken(token)
@@ -217,12 +232,14 @@ public class AuthService {
     @Transactional
     public void resendOtp(final String email) {
 
+        log.info("OTP resend requested for email: {}", email);
         final User user = this.userRepository.findByEmailAndActiveTrue(email).orElse(null);
 
         if (user == null) {
             return;
         }
         if (!user.getMfaEnabled()) {
+            log.warn("OTP resend failed because MFA is not enabled for '{}'.", email);
             throw new BadRequestException("MFA is not enabled.");
         }
 
@@ -243,6 +260,7 @@ public class AuthService {
                             .entityId(user.getId())
                             .description("OTP resent for MFA verification.")
                             .build());
+            log.info("Login OTP resent successfully to '{}'.", user.getEmail());
         }
         finally {
             this.securityUtil.clearAuthentication();
@@ -252,13 +270,17 @@ public class AuthService {
     @Transactional
     public void activateAccount(final String token, final String password) {
 
-        final User user = this.userRepository.findByActivationToken(token).orElseThrow(() -> new BadRequestException("Invalid token."));
+        log.info("Account activation requested.");
+        final User user = this.userRepository.findByActivationToken(token).orElseThrow(() -> {
+            log.warn("Account activation failed because an invalid activation token was provided.");
+            return new BadRequestException("Invalid token.");});
 
         if (user.getActive()) {
-            throw new BadRequestException(
-                    "Account is already activated.");
+            log.warn("Account activation failed because user '{}' is already activated.", user.getEmail());
+            throw new BadRequestException("Account is already activated.");
         }
         if (user.getActivationTokenExpiresAt() == null || Instant.now().isAfter(user.getActivationTokenExpiresAt())) {
+            log.warn("Account activation failed because the activation link expired for '{}'.", user.getEmail());
             throw new BadRequestException("Activation link has expired.");
         }
 
@@ -277,6 +299,7 @@ public class AuthService {
                             .entityId(savedUser.getId())
                             .description("User activated account using activation link.")
                             .build());
+            log.info("User '{}' activated their account successfully.", savedUser.getEmail());
         }
         finally {
             this.securityUtil.clearAuthentication();
@@ -286,6 +309,7 @@ public class AuthService {
     @Transactional
     public void forgotPassword(final String email) {
 
+        log.info("Forgot password requested for email '{}'.", email);
         final User user = this.userRepository.findByEmailAndActiveTrue(email).orElse(null);
 
         if (user == null) {
@@ -311,6 +335,7 @@ public class AuthService {
                             .entityId(savedUser.getId())
                             .description("Password reset link sent.")
                             .build());
+            log.info("Password reset link sent successfully to '{}'.", savedUser.getEmail());
         }
         finally {
             this.securityUtil.clearAuthentication();
@@ -320,10 +345,13 @@ public class AuthService {
     @Transactional
     public void resetPassword(final String token, final String password) {
 
-        final User user = this.userRepository.findByResetPasswordToken(token).orElseThrow(() -> new BadRequestException(
-                        "Invalid token."));
+        log.info("Password reset requested.");
+        final User user = this.userRepository.findByResetPasswordToken(token).orElseThrow(() -> {
+            log.warn("Password reset failed because an invalid reset token was provided.");
+            return new BadRequestException("Invalid token.");});
 
         if (user.getResetPasswordTokenExpiresAt() == null || Instant.now().isAfter(user.getResetPasswordTokenExpiresAt())) {
+            log.warn("Password reset failed because the reset link expired for '{}'.", user.getEmail());
             throw new BadRequestException("Reset password link has expired.");
         }
 
@@ -341,6 +369,7 @@ public class AuthService {
                             .entityId(savedUser.getId())
                             .description("User reset password.")
                             .build());
+            log.info("User '{}' reset their password successfully.", savedUser.getEmail());
         }
         finally {
             this.securityUtil.clearAuthentication();

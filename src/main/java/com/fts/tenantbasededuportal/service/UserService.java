@@ -15,6 +15,7 @@ import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.*;
@@ -33,6 +34,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
@@ -53,6 +55,7 @@ public class UserService {
     //Performs a GET operation and fetches all users from the DB.
     public Page<UserResponseDto> retrieveUsers(final int page, final int size) {
 
+        log.info("User retrieval requested.");
         this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
 
         final PageRequest pageRequest = PageRequest.of(page, size,Sort.by("createdAt").descending());
@@ -71,6 +74,7 @@ public class UserService {
         else {
             throw new UnauthorizedException("you don't have permission to view users");
         }
+        log.info("Users retrieved successfully.");
 
         return users.map(user ->
                 UserResponseDto.builder()
@@ -91,14 +95,18 @@ public class UserService {
     //Performs a GET operation and fetches the user based on the given id.
     public UserResponseDto retrieveUserById(final String id){
 
+        log.info("User retrieval requested for user ID '{}'.", id);
         this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
 
         if (this.securityUtil.isCurrentUser(id)){
+            log.warn("User retrieval failed because the current user attempted to retrieve their own account.");
             throw  new BadRequestException("You can't view own data using this endpoint");
         }
 
-        final User targetUser = this.userRepository.findByIdAndActiveTrue(id).orElseThrow(() -> new ResourceNotFoundException(
-                                        "User not found."));
+        final User targetUser = this.userRepository.findByIdAndActiveTrue(id).orElseThrow(() -> {
+            log.warn("User retrieval failed because user ID '{}' was not found.", id);
+            return new ResourceNotFoundException("User not found.");});
+
         //if role is org admin then they can only view users.
         if (this.securityUtil.isOrgAdmin() && !RoleConstants.USER.equals(targetUser.getRole().getName())) {
             throw new UnauthorizedException("Organization admins can only view users.");
@@ -113,6 +121,7 @@ public class UserService {
                 throw new UnauthorizedException("You cannot access users from another organization.");
             }
         }
+        log.info("User '{}' retrieved successfully.", targetUser.getId());
 
         return UserResponseDto.builder()
                 .id(targetUser.getId())
@@ -131,15 +140,18 @@ public class UserService {
 
     public Page<UserResponseDto> retrieveUsersByOrganization(final String id, final int page, final int size) {
 
+        log.info("User retrieval requested for organization ID '{}'.", id);
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("only super admin has permission to view users by organization.");
         }
         this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
 
-        final Organization organization = this.organizationRepository.findById(id).orElseThrow(() ->
-                        new ResourceNotFoundException("Organization not found."));
+        final Organization organization = this.organizationRepository.findById(id).orElseThrow(() ->{
+            log.warn("User retrieval failed because organization ID '{}' was not found.", id);
+            return new ResourceNotFoundException("Organization not found.");});
         final PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
         final Page<User> users = this.userRepository.findByOrganizationAndActiveTrue(organization, pageRequest);
+        log.info("Users retrieved successfully for organization '{}'.", organization.getId());
 
         return users.map(user ->
                 UserResponseDto.builder()
@@ -157,6 +169,7 @@ public class UserService {
 
     public Page<UserResponseDto> retrieveIndividualUsers(final int page, final int size) {
 
+        log.info("Individual user retrieval requested.");
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("Only the Super Admin has permission to view individual users.");
         }
@@ -165,6 +178,7 @@ public class UserService {
         final PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
         final Page<User> users = this.userRepository.findByOrganizationIsNullAndActiveTrueAndIdNot(
                 this.securityUtil.getCurrentUserId(), pageRequest);
+        log.info("Individual users retrieved successfully.");
 
         return users.map(user ->
                 UserResponseDto.builder()
@@ -183,6 +197,7 @@ public class UserService {
     @Transactional
     public UserResponseDto createUser(final CreateUserRequestDto request){
 
+        log.info("User creation requested.");
         this.permissionService.requirePermission(PermissionConstants.CREATE_USER);
         if (!this.securityUtil.isOrgAdmin()){
             throw new UnauthorizedException("Only organization admins can create users.");
@@ -190,6 +205,7 @@ public class UserService {
 
         //checks if the user already exists with email.
         if (this.userRepository.existsByEmail(request.getEmail())){
+            log.warn("User creation failed because user '{}' already exists.", request.getEmail());
             throw new ConflictException("Email already exists.");
         }
 
@@ -224,6 +240,7 @@ public class UserService {
                         .entityId(savedUser.getId())
                         .description("Created user: " + savedUser.getEmail())
                         .build());
+        log.info("User '{}' created successfully.", savedUser.getEmail());
 
         return UserResponseDto.builder()
                 .id(savedUser.getId())
@@ -241,18 +258,21 @@ public class UserService {
     @Transactional
     public void activate(final String userId, final boolean active){
 
+        log.info("User {} requested for user ID '{}'.", active ? "activation" : "deactivation", userId);
         if (!this.securityUtil.isOrgAdmin()){
             throw new UnauthorizedException("Only organization admins can activate users.");
         }
         this.permissionService.requirePermission(PermissionConstants.MANAGE_USER);
 
         if(this.securityUtil.isCurrentUser(userId)){
-            throw new BadRequestException(
-                    "You cannot activate or deactivate your own account.");
+            log.warn("User {} failed because the current user attempted to {} their own account.",
+                    active ? "activation" : "deactivation", active ? "activate" : "deactivate");
+            throw new BadRequestException("You cannot activate or deactivate your own account.");
         }
 
-        final User targetUser =  this.userRepository.findById(userId).orElseThrow(()->
-                new ResourceNotFoundException("User not found."));
+        final User targetUser =  this.userRepository.findById(userId).orElseThrow(()->{
+            log.warn("User {} failed because user ID '{}' was not found.", active ? "activation" : "deactivation", userId);
+            return new ResourceNotFoundException("User not found.");});
 
         if (targetUser.getOrganization() == null || !this.securityUtil.isSameOrganization(targetUser.getOrganization().getId())) {
             throw new UnauthorizedException("You can only manage users in your own organization.");
@@ -261,9 +281,9 @@ public class UserService {
             throw new UnauthorizedException("Only users can be activated or deactivated.");
         }
         if (targetUser.getActive().equals(active)) {
-            throw new BadRequestException(active
-                    ? "User is already active."
-                    : "User is already inactive.");
+            log.warn("User {} failed because user '{}' is already {}.",
+                    active ? "activation" : "deactivation", targetUser.getEmail(), active ? "active" : "inactive");
+            throw new BadRequestException(active ? "User is already active." : "User is already inactive.");
         }
 
         targetUser.setActive(active);
@@ -279,11 +299,13 @@ public class UserService {
                                 ? "Activated user: " + targetUser.getEmail()
                                 : "Deactivated user: " + targetUser.getEmail())
                         .build());
+        log.info("User '{}' {} successfully.", targetUser.getEmail(), active ? "activated " : "deactivated");
     }
 
     @Transactional
     public void activate(final String id, final boolean active, final boolean isUser){
 
+        log.info("{} {} requested for ID '{}'.", isUser ? "User" : "Organization", active ? "activation" : "deactivation", id);
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("Only super admins can perform this operation.");
         }
@@ -295,20 +317,25 @@ public class UserService {
         }
 
         if (isUser){
-            final User targetUser = this.userRepository.findById(id).orElseThrow(()-> new ResourceNotFoundException(
-                    "User not found."));
+            final User targetUser = this.userRepository.findById(id).orElseThrow(()-> {
+                log.warn("User {} failed because user ID '{}' was not found.", active ? "activation" : "deactivation", id);
+                return new ResourceNotFoundException("User not found.");});
 
             if (this.securityUtil.isCurrentUser(id)){
+                log.warn("User {} failed because the current user attempted to {} their own account.",
+                        active ? "activation" : "deactivation", active ? "activate" : "deactivate");
                 throw new BadRequestException("You cannot activate or deactivate your own account.");
             }
             if (targetUser.getOrganization() != null){
+                log.warn("User {} failed because user '{}' belongs to an organization.",
+                        active ? "activation" : "deactivation", targetUser.getEmail());
                 throw new BadRequestException("Organization users cannot be activated or deactivated individually.");
             }
 
             if (targetUser.getActive().equals(active)){
-                throw new BadRequestException(active
-                        ? "User is already active."
-                        : "User is already inactive.");
+                log.warn("User {} failed because user '{}' is already {}.",
+                        active ? "activation" : "deactivation", targetUser.getEmail(), active ? "active" : "inactive");
+                throw new BadRequestException(active ? "User is already active." : "User is already inactive.");
             }
 
             targetUser.setActive(active);
@@ -324,15 +351,18 @@ public class UserService {
                                     ? "Activated user: " + targetUser.getEmail()
                                     : "Deactivated user: " + targetUser.getEmail())
                             .build());
+            log.info("User '{}' {} successfully.", targetUser.getEmail(), active ? "activated" : "deactivated");
         }
         else {
-            final Organization organization = this.organizationRepository.findById(id).orElseThrow(() ->
-                                    new ResourceNotFoundException("Organization not found."));
+            final Organization organization = this.organizationRepository.findById(id).orElseThrow(() ->{
+                log.warn("Organization {} failed because organization ID '{}' was not found.",
+                        active ? "activation" : "deactivation", id);
+                return new ResourceNotFoundException("Organization not found.");});
 
             if (organization.getActive().equals(active)){
-                throw new BadRequestException(active
-                        ? "Organization is already active."
-                        : "Organization is already inactive.");
+                log.warn("Organization {} failed because organization '{}' is already {}.",
+                        active ? "activation" : "deactivation", organization.getName(), active ? "active" : "inactive");
+                throw new BadRequestException(active ? "Organization is already active." : "Organization is already inactive.");
             }
 
             organization.setActive(active);
@@ -344,17 +374,17 @@ public class UserService {
             }
             this.userRepository.saveAll(users);
 
-            this.auditService.create(
-                    AuditRequestDto.builder()
-                            .action(active
-                                    ? AuditActionConstants.ACTIVATE_ORGANIZATION
-                                    : AuditActionConstants.DEACTIVATE_ORGANIZATION)
-                            .entityAffected(EntityAffectedConstants.ORGANIZATION)
-                            .entityId(organization.getId())
-                            .description(active
-                                    ? "Activated organization: " + organization.getName()
-                                    : "Deactivated organization: " + organization.getName())
-                            .build());
+            this.auditService.create(AuditRequestDto.builder()
+                    .action(active
+                            ? AuditActionConstants.ACTIVATE_ORGANIZATION
+                            : AuditActionConstants.DEACTIVATE_ORGANIZATION)
+                    .entityAffected(EntityAffectedConstants.ORGANIZATION)
+                    .entityId(organization.getId())
+                    .description(active
+                            ? "Activated organization: " + organization.getName()
+                            : "Deactivated organization: " + organization.getName())
+                    .build());
+            log.info("Organization '{}' {} successfully.", organization.getName(), active ? "activated" : "deactivated");
         }
     }
 
@@ -363,7 +393,9 @@ public class UserService {
     @Transactional
     public BulkUploadResponseDto bulkUploadUsers(final MultipartFile file, final String organizationId){
 
+        log.info("Bulk user upload requested.");
         if (file.isEmpty()) {
+            log.warn("Bulk user upload failed because the uploaded file was empty.");
             throw new BadRequestException("File is empty.");
         }
         //checks if current user is super admin or org admin.
@@ -375,12 +407,13 @@ public class UserService {
         final Organization targetOrganization;
         if (this.securityUtil.isSuperAdmin()){
             if (organizationId == null || organizationId.isBlank()){
+                log.warn("Bulk user upload failed because no organization ID was provided by superadmin.");
                 throw new BadRequestException("organization Id is required");
             }
 
-            targetOrganization = organizationRepository.findByIdAndActiveTrue(organizationId)
-                    .orElseThrow(()-> new ResourceNotFoundException(
-                            "Organization not found"));
+            targetOrganization = organizationRepository.findByIdAndActiveTrue(organizationId).orElseThrow(()-> {
+                        log.warn("Bulk user upload failed because organization ID '{}' was not found.", organizationId);
+                        return new ResourceNotFoundException("Organization not found");});
         }
         else {
             targetOrganization = this.securityUtil.getCurrentOrganization();
@@ -389,6 +422,7 @@ public class UserService {
         final String fileName = file.getOriginalFilename();
 
         if (fileName == null || fileName.isBlank()) {
+            log.warn("Bulk user upload failed because the uploaded file has no valid filename.");
             throw new BadRequestException("invalid file");
         }
         if (fileName.toLowerCase().endsWith(".csv")){
@@ -397,6 +431,7 @@ public class UserService {
         if (fileName.toLowerCase().endsWith(".xlsx")){
             return this.uploadExcel(file, targetOrganization);
         }
+        log.warn("Bulk user upload failed because file '{}' has an unsupported format.", fileName);
         throw new BadRequestException("Only CSV and XLSX files are supported.");
     }
 
@@ -404,6 +439,7 @@ public class UserService {
     //takes file, current user, a boolean restore and organization id as parameters based on the operation.
     private BulkUploadResponseDto uploadCsv(final MultipartFile file, final Organization targetOrganization ) {
 
+        log.info("CSV bulk user upload started for organization '{}'.", targetOrganization.getName());
         final Role userRole = this.roleRepository.findByName(RoleConstants.USER).orElseThrow(()->
                 new IllegalStateException("Role not found."));
 
@@ -421,6 +457,7 @@ public class UserService {
 
             //makes sure header file is present.
             if (headerLineBom == null) {
+                log.warn("CSV bulk user upload failed because the file was empty.");
                 throw new BadRequestException("CSV file is empty.");
             }
 
@@ -429,6 +466,7 @@ public class UserService {
 
             //checks the header order and throws error if the order is not one of the given orders.
             if (!header.equalsIgnoreCase("email") && !header.equalsIgnoreCase("email,firstName,lastName")) {
+                log.warn("CSV bulk user upload failed because the CSV header is invalid.");
                 throw new BadRequestException("Invalid CSV header.");
             }
 
@@ -520,6 +558,8 @@ public class UserService {
                             + " users to organization: "
                             + targetOrganization.getName())
                             .build());
+            log.info("CSV bulk user upload completed successfully for organization '{}'. Uploaded: {}, Skipped: {}, Email failures: {}.",
+                    targetOrganization.getName(), uploaded, skipped, emailFailed);
 
             return BulkUploadResponseDto.builder()
                     .totalRecords(total)
@@ -535,6 +575,7 @@ public class UserService {
         }
 
         catch (final Exception exception) {
+            log.warn("CSV bulk user upload failed because the uploaded file is invalid.",exception);
             throw new BadRequestException("Invalid CSV file.");
         }
     }
@@ -542,6 +583,7 @@ public class UserService {
     //method for bulk upload and restore users.
     private BulkUploadResponseDto uploadExcel(final MultipartFile file, final Organization targetOrganization) {
 
+        log.info("Excel bulk user upload started for organization '{}'.", targetOrganization.getName());
         final Role userRole = this.roleRepository.findByName(RoleConstants.USER).orElseThrow(()->
                 new IllegalStateException("Role not found."));
 
@@ -559,6 +601,7 @@ public class UserService {
             final Row headerRow = sheet.getRow(0);
 
             if(headerRow == null){
+                log.warn("Excel bulk user upload failed because the file was empty.");
                 throw new BadRequestException("Excel file is empty.");
             }
 
@@ -581,6 +624,7 @@ public class UserService {
                             && "lastName".equalsIgnoreCase(column3);
             //checks both headers.
             if (!oneColumnFormat && !threeColumnFormat) {
+                log.warn("Excel bulk user upload failed because the Excel header is invalid.");
                 throw new BadRequestException("Invalid Excel header.");
             }
 
@@ -670,6 +714,8 @@ public class UserService {
                                     + " users to organization: "
                                     + targetOrganization.getName())
                             .build());
+            log.info("Excel bulk user upload completed successfully for organization '{}'. Uploaded: {}, Skipped: {}, Email failures: {}.",
+                    targetOrganization.getName(), uploaded, skipped, emailFailed);
 
             return BulkUploadResponseDto.builder()
                     .totalRecords(total)
@@ -682,8 +728,8 @@ public class UserService {
         catch (final BadRequestException exception) {
             throw exception;
         }
-
         catch (final Exception exception) {
+            log.warn("Excel bulk user upload failed because the uploaded file is invalid.",exception);
             throw new BadRequestException("Invalid Excel file.");
         }
     }
@@ -691,15 +737,18 @@ public class UserService {
     @Transactional
     public void resendActivationEmail(final String email) {
 
+        log.info("Activation email resend requested for user '{}'.", email);
         if (!this.securityUtil.isSuperAdmin() && !this.securityUtil.isOrgAdmin()){
             throw new UnauthorizedException("You are not allowed to resend activation email.");
         }
         this.permissionService.requirePermission(PermissionConstants.RESEND_ACTIVATION_EMAIL);
 
-        final User targetUser = this.userRepository.findByEmail(email).orElseThrow(() ->
-                new ResourceNotFoundException("User not found."));
+        final User targetUser = this.userRepository.findByEmail(email).orElseThrow(() -> {
+            log.warn("Activation email resend failed because user '{}' was not found.", email);
+            return new ResourceNotFoundException("User not found.");});
 
         if (targetUser.getActive()) {
+            log.warn("Activation email resend failed because user '{}' is already activated.", targetUser.getEmail());
             throw new BadRequestException("User account is already activated.");
         }
         if (this.securityUtil.isOrgAdmin()){
@@ -732,5 +781,6 @@ public class UserService {
                         .description("Resent activation email to: "
                                 + savedUser.getEmail())
                         .build());
+        log.info("Activation email resent successfully to user '{}'.", savedUser.getEmail());
     }
 }

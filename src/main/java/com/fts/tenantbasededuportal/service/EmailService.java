@@ -4,6 +4,7 @@ import com.fts.tenantbasededuportal.exception.EmailDeliveryException;
 import com.fts.tenantbasededuportal.util.constants.ApplicationConstants;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmailService {
 
     private final EmailTemplateService emailTemplateService;
@@ -32,6 +34,7 @@ public class EmailService {
             this.mailSender.send(message);
 
         } catch (final Exception exception) {
+            log.error("Failed to send email with subject '{}' to '{}'.", subject, toEmail, exception);
             throw new EmailDeliveryException("Failed to send email.", exception);
         }
     }

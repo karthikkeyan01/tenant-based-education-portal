@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.sql.*;
 import java.util.Properties;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public final class DatabaseInitializer {
 
     private DatabaseInitializer() {
@@ -16,14 +18,11 @@ public final class DatabaseInitializer {
         try (InputStream inputStream = DatabaseInitializer.class.getClassLoader().getResourceAsStream(
                 "application.properties")) {
             if (inputStream == null) {
-                throw new RuntimeException(
-                        "application.properties not found.");
+                throw new RuntimeException("application.properties not found.");
             }
             properties.load(inputStream);
         } catch (final IOException exception) {
-            throw new RuntimeException(
-                    "Unable to load application.properties.",
-                    exception);
+            throw new RuntimeException("Unable to load application.properties.", exception);
         }
 
         final String datasourceUrl = properties.getProperty("spring.datasource.url");
@@ -50,12 +49,10 @@ public final class DatabaseInitializer {
 
                         try (Statement statement = connection.createStatement()) {
                             statement.executeUpdate(createDatabaseQuery);
-                            System.out.println("Database '" + databaseName
-                                    + "' created successfully.");
+                            log.info("Database '{}' created successfully.", databaseName);
                         }
                     } else {
-                        System.out.println("Database '" + databaseName
-                                + "' already exists.");
+                        log.info("Database '{}' already exists.", databaseName);
                     }
                 }
             }
