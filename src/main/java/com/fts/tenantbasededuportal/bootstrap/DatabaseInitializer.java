@@ -57,6 +57,7 @@ public final class DatabaseInitializer {
                 }
             }
         } catch (final SQLException exception) {
+            log.error("Failed to initialize database '{}'.", databaseName, exception);
             throw new RuntimeException("Failed to initialize database: " + exception.getMessage(), exception);
         }
     }

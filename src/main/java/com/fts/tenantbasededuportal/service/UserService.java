@@ -55,7 +55,7 @@ public class UserService {
     //Performs a GET operation and fetches all users from the DB.
     public Page<UserResponseDto> retrieveUsers(final int page, final int size) {
 
-        log.info("User retrieval requested.");
+        log.info("User '{}' requested all users.", this.securityUtil.getCurrentUser().getEmail());
         this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
 
         final PageRequest pageRequest = PageRequest.of(page, size,Sort.by("createdAt").descending());
@@ -74,7 +74,7 @@ public class UserService {
         else {
             throw new UnauthorizedException("you don't have permission to view users");
         }
-        log.info("Users retrieved successfully.");
+        log.info("User '{}' retrieved {} users.", this.securityUtil.getCurrentUser().getEmail(), users.getNumberOfElements());
 
         return users.map(user ->
                 UserResponseDto.builder()
@@ -95,7 +95,7 @@ public class UserService {
     //Performs a GET operation and fetches the user based on the given id.
     public UserResponseDto retrieveUserById(final String id){
 
-        log.info("User retrieval requested for user ID '{}'.", id);
+        log.info("User '{}' requested user '{}'.", this.securityUtil.getCurrentUser().getEmail(), id);
         this.permissionService.requirePermission(PermissionConstants.VIEW_USERS);
 
         if (this.securityUtil.isCurrentUser(id)){
@@ -121,7 +121,7 @@ public class UserService {
                 throw new UnauthorizedException("You cannot access users from another organization.");
             }
         }
-        log.info("User '{}' retrieved successfully.", targetUser.getId());
+        log.info("User '{}' retrieved user '{}'.", this.securityUtil.getCurrentUser().getEmail(), targetUser.getEmail());
 
         return UserResponseDto.builder()
                 .id(targetUser.getId())
@@ -140,7 +140,7 @@ public class UserService {
 
     public Page<UserResponseDto> retrieveUsersByOrganization(final String id, final int page, final int size) {
 
-        log.info("User retrieval requested for organization ID '{}'.", id);
+        log.info("User '{}' requested users for organization '{}'.", this.securityUtil.getCurrentUser().getEmail(), id);
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("only super admin has permission to view users by organization.");
         }
@@ -151,7 +151,8 @@ public class UserService {
             return new ResourceNotFoundException("Organization not found.");});
         final PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
         final Page<User> users = this.userRepository.findByOrganizationAndActiveTrue(organization, pageRequest);
-        log.info("Users retrieved successfully for organization '{}'.", organization.getId());
+        log.info("User '{}' retrieved {} users for organization '{}'.", this.securityUtil.getCurrentUser().getEmail(),
+                users.getNumberOfElements(), organization.getName());
 
         return users.map(user ->
                 UserResponseDto.builder()
@@ -169,7 +170,7 @@ public class UserService {
 
     public Page<UserResponseDto> retrieveIndividualUsers(final int page, final int size) {
 
-        log.info("Individual user retrieval requested.");
+        log.info("User '{}' requested individual users.", this.securityUtil.getCurrentUser().getEmail());
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("Only the Super Admin has permission to view individual users.");
         }
@@ -178,7 +179,7 @@ public class UserService {
         final PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
         final Page<User> users = this.userRepository.findByOrganizationIsNullAndActiveTrueAndIdNot(
                 this.securityUtil.getCurrentUserId(), pageRequest);
-        log.info("Individual users retrieved successfully.");
+        log.info("User '{}' retrieved {} individual users.", this.securityUtil.getCurrentUser().getEmail(), users.getNumberOfElements());
 
         return users.map(user ->
                 UserResponseDto.builder()
@@ -197,7 +198,7 @@ public class UserService {
     @Transactional
     public UserResponseDto createUser(final CreateUserRequestDto request){
 
-        log.info("User creation requested.");
+        log.info("User '{}' requested user creation.", this.securityUtil.getCurrentUser().getEmail());
         this.permissionService.requirePermission(PermissionConstants.CREATE_USER);
         if (!this.securityUtil.isOrgAdmin()){
             throw new UnauthorizedException("Only organization admins can create users.");
@@ -240,7 +241,7 @@ public class UserService {
                         .entityId(savedUser.getId())
                         .description("Created user: " + savedUser.getEmail())
                         .build());
-        log.info("User '{}' created successfully.", savedUser.getEmail());
+        log.info("User '{}' created user '{}'.", this.securityUtil.getCurrentUser().getEmail(), savedUser.getEmail());
 
         return UserResponseDto.builder()
                 .id(savedUser.getId())
@@ -258,7 +259,8 @@ public class UserService {
     @Transactional
     public void activate(final String userId, final boolean active){
 
-        log.info("User {} requested for user ID '{}'.", active ? "activation" : "deactivation", userId);
+        log.info("User '{}' requested {} of user '{}'.", this.securityUtil.getCurrentUser().getEmail(),
+                active ? "activation" : "deactivation", userId);
         if (!this.securityUtil.isOrgAdmin()){
             throw new UnauthorizedException("Only organization admins can activate users.");
         }
@@ -299,13 +301,14 @@ public class UserService {
                                 ? "Activated user: " + targetUser.getEmail()
                                 : "Deactivated user: " + targetUser.getEmail())
                         .build());
-        log.info("User '{}' {} successfully.", targetUser.getEmail(), active ? "activated " : "deactivated");
+        log.info("User '{}' {} user '{}'.", this.securityUtil.getCurrentUser().getEmail(), active ? "activated" : "deactivated", targetUser.getEmail());
     }
 
     @Transactional
     public void activate(final String id, final boolean active, final boolean isUser){
 
-        log.info("{} {} requested for ID '{}'.", isUser ? "User" : "Organization", active ? "activation" : "deactivation", id);
+        log.info("User '{}' requested {} of {} '{}'.", this.securityUtil.getCurrentUser().getEmail(),
+                active ? "activation" : "deactivation", isUser ? "user" : "organization", id);
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("Only super admins can perform this operation.");
         }
@@ -351,7 +354,7 @@ public class UserService {
                                     ? "Activated user: " + targetUser.getEmail()
                                     : "Deactivated user: " + targetUser.getEmail())
                             .build());
-            log.info("User '{}' {} successfully.", targetUser.getEmail(), active ? "activated" : "deactivated");
+            log.info("User '{}' {} user '{}'.", this.securityUtil.getCurrentUser().getEmail(), active ? "activated" : "deactivated", targetUser.getEmail());
         }
         else {
             final Organization organization = this.organizationRepository.findById(id).orElseThrow(() ->{
@@ -384,7 +387,7 @@ public class UserService {
                             ? "Activated organization: " + organization.getName()
                             : "Deactivated organization: " + organization.getName())
                     .build());
-            log.info("Organization '{}' {} successfully.", organization.getName(), active ? "activated" : "deactivated");
+            log.info("User '{}' {} organization '{}'.", this.securityUtil.getCurrentUser().getEmail(), active ? "activated" : "deactivated", organization.getName());
         }
     }
 
@@ -393,7 +396,7 @@ public class UserService {
     @Transactional
     public BulkUploadResponseDto bulkUploadUsers(final MultipartFile file, final String organizationId){
 
-        log.info("Bulk user upload requested.");
+        log.info("User '{}' requested a bulk user upload.", this.securityUtil.getCurrentUser().getEmail());
         if (file.isEmpty()) {
             log.warn("Bulk user upload failed because the uploaded file was empty.");
             throw new BadRequestException("File is empty.");
@@ -439,7 +442,7 @@ public class UserService {
     //takes file, current user, a boolean restore and organization id as parameters based on the operation.
     private BulkUploadResponseDto uploadCsv(final MultipartFile file, final Organization targetOrganization ) {
 
-        log.info("CSV bulk user upload started for organization '{}'.", targetOrganization.getName());
+        log.info("User '{}' started CSV bulk upload for organization '{}'.", this.securityUtil.getCurrentUser().getEmail(), targetOrganization.getName());
         final Role userRole = this.roleRepository.findByName(RoleConstants.USER).orElseThrow(()->
                 new IllegalStateException("Role not found."));
 
@@ -558,8 +561,8 @@ public class UserService {
                             + " users to organization: "
                             + targetOrganization.getName())
                             .build());
-            log.info("CSV bulk user upload completed successfully for organization '{}'. Uploaded: {}, Skipped: {}, Email failures: {}.",
-                    targetOrganization.getName(), uploaded, skipped, emailFailed);
+            log.info("User '{}' completed CSV bulk upload for organization '{}'. Uploaded: {}, Skipped: {}, Email failures: {}.",
+                    this.securityUtil.getCurrentUser().getEmail(), targetOrganization.getName(), uploaded, skipped, emailFailed);
 
             return BulkUploadResponseDto.builder()
                     .totalRecords(total)
@@ -583,7 +586,7 @@ public class UserService {
     //method for bulk upload and restore users.
     private BulkUploadResponseDto uploadExcel(final MultipartFile file, final Organization targetOrganization) {
 
-        log.info("Excel bulk user upload started for organization '{}'.", targetOrganization.getName());
+        log.info("User '{}' started Excel bulk upload for organization '{}'.", this.securityUtil.getCurrentUser().getEmail(), targetOrganization.getName());
         final Role userRole = this.roleRepository.findByName(RoleConstants.USER).orElseThrow(()->
                 new IllegalStateException("Role not found."));
 
@@ -714,8 +717,8 @@ public class UserService {
                                     + " users to organization: "
                                     + targetOrganization.getName())
                             .build());
-            log.info("Excel bulk user upload completed successfully for organization '{}'. Uploaded: {}, Skipped: {}, Email failures: {}.",
-                    targetOrganization.getName(), uploaded, skipped, emailFailed);
+            log.info("User '{}' completed Excel bulk upload for organization '{}'. Uploaded: {}, Skipped: {}, Email failures: {}.",
+                    this.securityUtil.getCurrentUser().getEmail(), targetOrganization.getName(), uploaded, skipped, emailFailed);
 
             return BulkUploadResponseDto.builder()
                     .totalRecords(total)
@@ -737,7 +740,7 @@ public class UserService {
     @Transactional
     public void resendActivationEmail(final String email) {
 
-        log.info("Activation email resend requested for user '{}'.", email);
+        log.info("User '{}' requested activation email resend for '{}'.", this.securityUtil.getCurrentUser().getEmail(), email);
         if (!this.securityUtil.isSuperAdmin() && !this.securityUtil.isOrgAdmin()){
             throw new UnauthorizedException("You are not allowed to resend activation email.");
         }
@@ -781,6 +784,6 @@ public class UserService {
                         .description("Resent activation email to: "
                                 + savedUser.getEmail())
                         .build());
-        log.info("Activation email resent successfully to user '{}'.", savedUser.getEmail());
+        log.info("User '{}' resent an activation email to '{}'.", this.securityUtil.getCurrentUser().getEmail(), savedUser.getEmail());
     }
 }

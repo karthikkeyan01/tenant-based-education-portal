@@ -17,6 +17,7 @@ import com.fts.tenantbasededuportal.util.constants.EntityAffectedConstants;
 import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,8 +53,7 @@ public class AuthService {
     @Transactional
     public void register(final RegisterRequestDto request){
 
-        log.info("Registration requested for email: {}", request.getEmail());
-
+        log.info("Registration requested for email '{}'.", request.getEmail());
         if (this.userRepository.existsByEmail(request.getEmail())){
             log.warn("Registration failed because email '{}' already exists.", request.getEmail());
             throw new ConflictException("Email already exists");
@@ -97,10 +97,18 @@ public class AuthService {
 
     public LoginResponseDto login(final LoginRequestDto request){
 
-        log.info("Login requested for email: {}", request.getEmail());
-        final Authentication authentication = this.authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                            request.getEmail(), request.getPassword()));
-
+        log.info("Authentication requested for email '{}'.", request.getEmail());
+        final Authentication authentication;
+        try {
+            authentication = this.authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                    request.getEmail(), request.getPassword()));
+        }
+        catch (final InternalAuthenticationServiceException exception) {
+            if (exception.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw exception;
+        }
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         final UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
@@ -165,7 +173,7 @@ public class AuthService {
     @Transactional
     public LoginResponseDto verifyOtp(final String email, final String otp){
 
-        log.info("OTP verification requested for email: {}", email);
+        log.info("OTP verification requested for email '{}'.", email);
         final User user = this.userRepository.findByEmailAndActiveTrue(email).orElseThrow(() ->{
             log.warn("OTP verification failed because no active user was found for email '{}'.", email);
             return new UnauthorizedException("Invalid email or OTP.");});
@@ -232,7 +240,7 @@ public class AuthService {
     @Transactional
     public void resendOtp(final String email) {
 
-        log.info("OTP resend requested for email: {}", email);
+        log.info("OTP resend requested for email '{}'.", email);
         final User user = this.userRepository.findByEmailAndActiveTrue(email).orElse(null);
 
         if (user == null) {
@@ -385,5 +393,6 @@ public class AuthService {
                         .entityId(this.securityUtil.getCurrentUserId())
                         .description("User logged out.")
                         .build());
+        log.info("User '{}' logged out successfully.", this.securityUtil.getCurrentUser().getEmail());
     }
 }

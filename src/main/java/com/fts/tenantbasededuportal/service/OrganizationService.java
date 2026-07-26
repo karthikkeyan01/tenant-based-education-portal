@@ -54,7 +54,7 @@ public class OrganizationService {
     @Transactional
     public CreateOrganizationResponseDto createOrganization(final CreateOrganizationRequestDto request) {
 
-        log.info("Organization creation requested.");
+        log.info("User '{}' requested organization creation.", this.securityUtil.getCurrentUser().getEmail());
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("You are not allowed to perform this action");
         }
@@ -91,7 +91,7 @@ public class OrganizationService {
                                 + savedOrganization.getName()
                                 + " along with it's admin")
                         .build());
-        log.info("Organization '{}' created successfully with administrator '{}'.", savedOrganization.getName(), savedUser.getEmail());
+        log.info("User '{}' created organization '{}' with administrator '{}'.", this.securityUtil.getCurrentUser().getEmail(), savedOrganization.getName(), savedUser.getEmail());
 
         return CreateOrganizationResponseDto.builder()
                 .organizationId(savedOrganization.getId())
@@ -110,7 +110,7 @@ public class OrganizationService {
     @Transactional(readOnly = true)
     public Page<OrganizationResponseDto> retrieveAllOrganizations(final int page, final int size) {
 
-        log.info("Organization retrieval requested.");
+        log.info("User '{}' requested all organizations.", this.securityUtil.getCurrentUser().getEmail());
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("Only super admin can view organizations");
         }
@@ -119,7 +119,7 @@ public class OrganizationService {
         final Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         final Page<Organization> organizations = this.organizationRepository.findByActiveTrue(pageable);
 
-        log.info("Organizations retrieved successfully.");
+        log.info("User '{}' retrieved {} organizations.", this.securityUtil.getCurrentUser().getEmail(), organizations.getNumberOfElements());
         return organizations.map( organization ->
                 OrganizationResponseDto.builder()
                         .id(organization.getId())
@@ -134,7 +134,7 @@ public class OrganizationService {
     @Transactional(readOnly = true)
     public OrganizationResponseDto retrieveOrganizationById(final String id) {
 
-        log.info("Organization retrieval requested for organization ID: '{}'.",id);
+        log.info("User '{}' requested organization with ID '{}'.", this.securityUtil.getCurrentUser().getEmail(), id);
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("Only super admin can view organization");
         }
@@ -144,7 +144,7 @@ public class OrganizationService {
             log.warn("Organization retrieval failed because organization ID '{}' was not found.", id);
             return new ResourceNotFoundException("Organization not found");});
 
-        log.info("Organization '{}' retrieved successfully.", organization.getId());
+        log.info("User '{}' retrieved organization '{}'.", this.securityUtil.getCurrentUser().getEmail(), organization.getId());
 
         return OrganizationResponseDto.builder()
                 .id(organization.getId())
@@ -159,7 +159,7 @@ public class OrganizationService {
     @Transactional
     public OrganizationResponseDto updateOrganizationById(final String id, final OrganizationRequestDto request) {
 
-        log.info("Organization update requested for organization ID '{}'.", id);
+        log.info("User '{}' requested update for organization '{}'.", this.securityUtil.getCurrentUser().getEmail(), id);
         if (!this.securityUtil.isSuperAdmin()){
             throw new UnauthorizedException("Only super admin can update organization");
         }
@@ -195,7 +195,7 @@ public class OrganizationService {
                         .description("Updated organization: "
                                 + savedOrganization.getName())
                         .build());
-        log.info("Organization '{}' updated successfully.", savedOrganization.getId());
+        log.info("User '{}' updated organization '{}'.", this.securityUtil.getCurrentUser().getEmail(), savedOrganization.getName());
 
         return OrganizationResponseDto.builder()
                 .id(savedOrganization.getId())

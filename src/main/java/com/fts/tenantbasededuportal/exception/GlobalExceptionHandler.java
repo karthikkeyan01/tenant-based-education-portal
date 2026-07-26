@@ -162,6 +162,21 @@ public class GlobalExceptionHandler {
                 .build();
     }
 
+    @ExceptionHandler(OrganizationInactiveException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleOrganizationInactiveException(
+            final OrganizationInactiveException exception,
+            final HttpServletRequest request) {
+
+        return ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error(HttpStatus.FORBIDDEN.getReasonPhrase())
+                .message(exception.getMessage())
+                .path(request.getRequestURI())
+                .build();
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleConstraintViolation(final ConstraintViolationException exception, final HttpServletRequest request) {
@@ -237,8 +252,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleException(final Exception exception, final HttpServletRequest request) {
 
-        log.error("Unexpected exception occurred while processing request '{}'.", request.getRequestURI(), exception);
-
+        log.error("Unexpected exception occurred while processing {} {}.", request.getMethod(), request.getRequestURI(), exception);
         return ErrorResponse.builder()
                 .timestamp(Instant.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())

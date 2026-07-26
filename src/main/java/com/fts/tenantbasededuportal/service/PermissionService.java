@@ -23,7 +23,7 @@ public class PermissionService {
 
         final User currentUser = this.securityUtil.getCurrentUser();
         if(!this.hasPermission(currentUser, permission)){
-            log.warn("Permission '{}' denied for user '{}' (ID: {}).", permission, currentUser.getEmail(), currentUser.getId());
+            log.warn("User '{}' (ID: {}) attempted an operation without permission '{}'.", currentUser.getEmail(), currentUser.getId(), permission);
             throw new AccessDeniedException("You do not have permission to perform this action.");
         }
     }

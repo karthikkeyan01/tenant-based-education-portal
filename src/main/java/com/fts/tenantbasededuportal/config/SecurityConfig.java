@@ -2,6 +2,8 @@ package com.fts.tenantbasededuportal.config;
 
 import com.fts.tenantbasededuportal.security.CustomUserDetailsService;
 import com.fts.tenantbasededuportal.security.JwtFilter;
+import com.fts.tenantbasededuportal.security.RestAccessDeniedHandler;
+import com.fts.tenantbasededuportal.security.RestAuthenticationEntryPoint;
 import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +30,8 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final CustomUserDetailsService customUserDetailsService;
+    private final RestAuthenticationEntryPoint authenticationEntryPoint;
+    private final RestAccessDeniedHandler accessDeniedHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -42,6 +46,9 @@ public class SecurityConfig {
                                 .requestMatchers("/actuator/**").hasRole(RoleConstants.SUPER_ADMIN)
                                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                                 .anyRequest().authenticated())
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(this.authenticationEntryPoint)
+                        .accessDeniedHandler(this.accessDeniedHandler))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(this.authenticationProvider())

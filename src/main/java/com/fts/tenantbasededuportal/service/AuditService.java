@@ -56,12 +56,12 @@ public class AuditService {
     @Transactional(readOnly = true)
     public Page<AuditResponseDto> retrieveAuditLogs(final int page, final int size) {
 
-        log.info("Audit log retrieval requested.");
+        log.info("User '{}' requested audit logs.", this.securityUtil.getCurrentUser().getEmail());
         this.permissionService.requirePermission(PermissionConstants.VIEW_AUDIT_LOGS);
 
         final Page<AuditLog> auditLogs = this.auditLogRepository.findAll(PageRequest.of(page, size,
                 Sort.by("createdAt").descending()));
-        log.info("Audit logs retrieved successfully.");
+        log.info("User '{}' retrieved {} audit logs.", this.securityUtil.getCurrentUser().getEmail(), auditLogs.getNumberOfElements());
 
         return auditLogs.map(auditLog -> {
             final User user = auditLog.getUser();
@@ -85,13 +85,13 @@ public class AuditService {
     @Transactional(readOnly = true)
     public Page<AuditResponseDto> retrieveAuditLogsByUser(final String userId, final int page, final int size) {
 
-        log.info("Audit log retrieval requested for user ID '{}'.", userId);
+        log.info("User '{}' requested audit logs for user ID '{}'.", this.securityUtil.getCurrentUser().getEmail(), userId);
         this.permissionService.requirePermission(PermissionConstants.VIEW_AUDIT_LOGS);
         this.userRepository.findById(userId).orElseThrow(()-> new ResourceNotFoundException("User not found"));
 
         final Page<AuditLog> auditLogs = this.auditLogRepository.findByUser_Id(userId,
                         PageRequest.of(page, size, Sort.by("createdAt").descending()));
-        log.info("Audit logs retrieved successfully for user ID '{}'.", userId);
+        log.info("User '{}' retrieved {} audit logs for user ID '{}'.", this.securityUtil.getCurrentUser().getEmail(), auditLogs.getNumberOfElements(), userId);
 
         return auditLogs.map(auditLog -> {
             final User user = auditLog.getUser();

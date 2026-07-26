@@ -57,7 +57,6 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initializeRoles(){
 
-        log.info("Initializing default roles.");
         final String[] roles = {
                 RoleConstants.SUPER_ADMIN,
                 RoleConstants.ORG_ADMIN,
@@ -75,7 +74,6 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initializePermissions(){
 
-        log.info("Initializing default permissions.");
         final String[] permissions = {
                 PermissionConstants.VIEW_USERS,
                 PermissionConstants.CREATE_USER,
@@ -103,7 +101,6 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initializeRolePermissions(){
 
-        log.info("Initializing role permissions.");
         final Role superAdmin = this.roleRepository.findByName(RoleConstants.SUPER_ADMIN).orElseThrow();
         final Role orgAdmin = this.roleRepository.findByName(RoleConstants.ORG_ADMIN).orElseThrow();
         final Role user = this.roleRepository.findByName(RoleConstants.USER).orElseThrow();

@@ -32,10 +32,10 @@ public class ProfileService {
     @Transactional(readOnly = true)
     public ProfileResponseDto retrieveProfile() {
 
-        log.info("Profile retrieval requested.");
+        log.info("User '{}' requested their profile.", this.securityUtil.getCurrentUser().getEmail());
         this.permissionService.requirePermission(PermissionConstants.VIEW_PROFILE);
         final User currentUser = this.securityUtil.getCurrentUser();
-        log.info("Profile retrieved successfully.");
+        log.info("User '{}' retrieved their profile.", currentUser.getEmail());
 
         return ProfileResponseDto.builder()
                 .id(currentUser.getId())
@@ -55,7 +55,7 @@ public class ProfileService {
     @Transactional
     public ProfileResponseDto updateProfile(final UpdateProfileRequestDto request) {
 
-        log.info("Profile update requested.");
+        log.info("User '{}' requested a profile update.", this.securityUtil.getCurrentUser().getEmail());
         this.permissionService.requirePermission(PermissionConstants.UPDATE_PROFILE);
 
         final User currentUser = this.securityUtil.getCurrentUser();
@@ -100,7 +100,7 @@ public class ProfileService {
                         .entityId(currentUser.getId())
                         .description(auditDetails.toString())
                         .build());
-        log.info("Profile updated successfully.");
+        log.info("User '{}' updated their profile.", savedUser.getEmail());
 
         return ProfileResponseDto.builder()
                 .id(savedUser.getId())
@@ -121,7 +121,7 @@ public class ProfileService {
     @Transactional
     public void changeProfilePassword(final ChangePasswordRequestDto request) {
 
-        log.info("Password change requested.");
+        log.info("User '{}' requested a password change.", this.securityUtil.getCurrentUser().getEmail());
         this.permissionService.requirePermission(PermissionConstants.CHANGE_PASSWORD);
 
         final User currentUser = this.securityUtil.getCurrentUser();
@@ -153,6 +153,6 @@ public class ProfileService {
                         .entityId(currentUser.getId())
                         .description("User changed their password.")
                         .build());
-        log.info("Password changed successfully.");
+        log.info("User '{}' changed their password successfully.", currentUser.getEmail());
     }
 }

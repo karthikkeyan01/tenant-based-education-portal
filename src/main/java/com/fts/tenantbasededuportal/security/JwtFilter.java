@@ -1,6 +1,8 @@
 package com.fts.tenantbasededuportal.security;
 
+import com.fts.tenantbasededuportal.exception.AccountInactiveException;
 import com.fts.tenantbasededuportal.exception.ErrorResponse;
+import com.fts.tenantbasededuportal.exception.OrganizationInactiveException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -56,9 +59,8 @@ public class JwtFilter extends OncePerRequestFilter {
             }
             filterChain.doFilter(request, response);
         }
-        catch (final JwtException | IllegalArgumentException exception){
-
-            log.warn("JWT authentication failed for {} '{}'.", request.getMethod(), request.getRequestURI(), exception);
+        catch (JwtException | IllegalArgumentException | UsernameNotFoundException | AccountInactiveException | OrganizationInactiveException exception){
+            log.warn("JWT authentication failed for {} {}: {}", request.getMethod(), request.getRequestURI(), exception.getMessage());
             final ErrorResponse errorResponse = ErrorResponse.builder()
                     .timestamp(Instant.now())
                     .status(HttpServletResponse.SC_UNAUTHORIZED)
