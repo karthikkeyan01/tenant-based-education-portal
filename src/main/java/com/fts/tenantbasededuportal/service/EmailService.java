@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.aop.annotation.TrackExecutionTime;
 import com.fts.tenantbasededuportal.exception.EmailDeliveryException;
 import com.fts.tenantbasededuportal.util.constants.ApplicationConstants;
 import jakarta.mail.internet.MimeMessage;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@TrackExecutionTime
 public class EmailService {
 
     private final EmailTemplateService emailTemplateService;

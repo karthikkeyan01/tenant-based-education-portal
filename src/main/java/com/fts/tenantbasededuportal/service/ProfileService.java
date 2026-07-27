@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.aop.annotation.TrackExecutionTime;
 import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
 import com.fts.tenantbasededuportal.dto.profile.ChangePasswordRequestDto;
 import com.fts.tenantbasededuportal.dto.profile.ProfileResponseDto;
@@ -30,6 +31,7 @@ public class ProfileService {
 
     //performs a GET request and fetches the profile of logged-in user.
     @Transactional(readOnly = true)
+    @TrackExecutionTime
     public ProfileResponseDto retrieveProfile() {
 
         log.info("User '{}' requested their profile.", this.securityUtil.getCurrentUser().getEmail());
@@ -53,6 +55,7 @@ public class ProfileService {
 
     //performs a PUT request and updates profile of logged-in user.
     @Transactional
+    @TrackExecutionTime
     public ProfileResponseDto updateProfile(final UpdateProfileRequestDto request) {
 
         log.info("User '{}' requested a profile update.", this.securityUtil.getCurrentUser().getEmail());
@@ -119,6 +122,7 @@ public class ProfileService {
     //performs a PUT request and changes the password of logged-in user.
     //note needs old password and new password (must match)
     @Transactional
+    @TrackExecutionTime
     public void changeProfilePassword(final ChangePasswordRequestDto request) {
 
         log.info("User '{}' requested a password change.", this.securityUtil.getCurrentUser().getEmail());

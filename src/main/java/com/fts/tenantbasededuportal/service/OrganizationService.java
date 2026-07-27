@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.aop.annotation.TrackExecutionTime;
 import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
 import com.fts.tenantbasededuportal.dto.organization.*;
 import com.fts.tenantbasededuportal.entity.Organization;
@@ -52,6 +53,7 @@ public class OrganizationService {
     //performs a POST operation and creates an organization.
     //only super admin can create organizations
     @Transactional
+    @TrackExecutionTime
     public CreateOrganizationResponseDto createOrganization(final CreateOrganizationRequestDto request) {
 
         log.info("User '{}' requested organization creation.", this.securityUtil.getCurrentUser().getEmail());
@@ -108,6 +110,7 @@ public class OrganizationService {
     //performs a GET operation and fetches all organizations.
     //can be performed only by super admin.
     @Transactional(readOnly = true)
+    @TrackExecutionTime
     public Page<OrganizationResponseDto> retrieveAllOrganizations(final int page, final int size) {
 
         log.info("User '{}' requested all organizations.", this.securityUtil.getCurrentUser().getEmail());
@@ -119,7 +122,7 @@ public class OrganizationService {
         final Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         final Page<Organization> organizations = this.organizationRepository.findByActiveTrue(pageable);
 
-        log.info("User '{}' retrieved {} organizations.", this.securityUtil.getCurrentUser().getEmail(), organizations.getNumberOfElements());
+        log.info("User '{}' retrieved {} organizations. (page {}, size {})", this.securityUtil.getCurrentUser().getEmail(), organizations.getNumberOfElements(), page, size);
         return organizations.map( organization ->
                 OrganizationResponseDto.builder()
                         .id(organization.getId())
@@ -132,6 +135,7 @@ public class OrganizationService {
     //performs a GET operation and fetches organization based on org id.
     //can be accessed by super admin.
     @Transactional(readOnly = true)
+    @TrackExecutionTime
     public OrganizationResponseDto retrieveOrganizationById(final String id) {
 
         log.info("User '{}' requested organization with ID '{}'.", this.securityUtil.getCurrentUser().getEmail(), id);
@@ -157,6 +161,7 @@ public class OrganizationService {
     //performs a PUT operation and updates organization.
     //can be only performed by super admin.
     @Transactional
+    @TrackExecutionTime
     public OrganizationResponseDto updateOrganizationById(final String id, final OrganizationRequestDto request) {
 
         log.info("User '{}' requested update for organization '{}'.", this.securityUtil.getCurrentUser().getEmail(), id);

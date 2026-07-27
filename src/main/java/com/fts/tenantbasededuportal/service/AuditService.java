@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.aop.annotation.TrackExecutionTime;
 import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
 import com.fts.tenantbasededuportal.dto.audit.AuditResponseDto;
 import com.fts.tenantbasededuportal.entity.AuditLog;
@@ -54,6 +55,7 @@ public class AuditService {
     }
 
     @Transactional(readOnly = true)
+    @TrackExecutionTime
     public Page<AuditResponseDto> retrieveAuditLogs(final int page, final int size) {
 
         log.info("User '{}' requested audit logs.", this.securityUtil.getCurrentUser().getEmail());
@@ -61,7 +63,7 @@ public class AuditService {
 
         final Page<AuditLog> auditLogs = this.auditLogRepository.findAll(PageRequest.of(page, size,
                 Sort.by("createdAt").descending()));
-        log.info("User '{}' retrieved {} audit logs.", this.securityUtil.getCurrentUser().getEmail(), auditLogs.getNumberOfElements());
+        log.info("User '{}' retrieved {} audit logs. (page {}, size {})", this.securityUtil.getCurrentUser().getEmail(), auditLogs.getNumberOfElements(),page, size);
 
         return auditLogs.map(auditLog -> {
             final User user = auditLog.getUser();
@@ -83,6 +85,7 @@ public class AuditService {
     }
 
     @Transactional(readOnly = true)
+    @TrackExecutionTime
     public Page<AuditResponseDto> retrieveAuditLogsByUser(final String userId, final int page, final int size) {
 
         log.info("User '{}' requested audit logs for user ID '{}'.", this.securityUtil.getCurrentUser().getEmail(), userId);
@@ -91,7 +94,7 @@ public class AuditService {
 
         final Page<AuditLog> auditLogs = this.auditLogRepository.findByUser_Id(userId,
                         PageRequest.of(page, size, Sort.by("createdAt").descending()));
-        log.info("User '{}' retrieved {} audit logs for user ID '{}'.", this.securityUtil.getCurrentUser().getEmail(), auditLogs.getNumberOfElements(), userId);
+        log.info("User '{}' retrieved {} audit logs for user ID '{}' (page {}, size {}).", this.securityUtil.getCurrentUser().getEmail(), auditLogs.getNumberOfElements(), userId, page, size);
 
         return auditLogs.map(auditLog -> {
             final User user = auditLog.getUser();

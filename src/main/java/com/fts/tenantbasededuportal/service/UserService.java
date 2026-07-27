@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.aop.annotation.TrackExecutionTime;
 import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
 import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.entity.Organization;
@@ -53,6 +54,7 @@ public class UserService {
     private static final String EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
 
     //Performs a GET operation and fetches all users from the DB.
+    @TrackExecutionTime
     public Page<UserResponseDto> retrieveUsers(final int page, final int size) {
 
         log.info("User '{}' requested all users.", this.securityUtil.getCurrentUser().getEmail());
@@ -74,7 +76,7 @@ public class UserService {
         else {
             throw new UnauthorizedException("you don't have permission to view users");
         }
-        log.info("User '{}' retrieved {} users.", this.securityUtil.getCurrentUser().getEmail(), users.getNumberOfElements());
+        log.info("User '{}' retrieved {} users. (page {}, size {})", this.securityUtil.getCurrentUser().getEmail(), users.getNumberOfElements(),page, size);
 
         return users.map(user ->
                 UserResponseDto.builder()
@@ -93,6 +95,7 @@ public class UserService {
     }
 
     //Performs a GET operation and fetches the user based on the given id.
+    @TrackExecutionTime
     public UserResponseDto retrieveUserById(final String id){
 
         log.info("User '{}' requested user '{}'.", this.securityUtil.getCurrentUser().getEmail(), id);
@@ -138,6 +141,7 @@ public class UserService {
                 .build();
     }
 
+    @TrackExecutionTime
     public Page<UserResponseDto> retrieveUsersByOrganization(final String id, final int page, final int size) {
 
         log.info("User '{}' requested users for organization '{}'.", this.securityUtil.getCurrentUser().getEmail(), id);
@@ -151,8 +155,8 @@ public class UserService {
             return new ResourceNotFoundException("Organization not found.");});
         final PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
         final Page<User> users = this.userRepository.findByOrganizationAndActiveTrue(organization, pageRequest);
-        log.info("User '{}' retrieved {} users for organization '{}'.", this.securityUtil.getCurrentUser().getEmail(),
-                users.getNumberOfElements(), organization.getName());
+        log.info("User '{}' retrieved {} users for organization '{}' (page {}, size {}).", this.securityUtil.getCurrentUser().getEmail(),
+                users.getNumberOfElements(), organization.getName(), page, size);
 
         return users.map(user ->
                 UserResponseDto.builder()
@@ -168,6 +172,7 @@ public class UserService {
                         .build());
     }
 
+    @TrackExecutionTime
     public Page<UserResponseDto> retrieveIndividualUsers(final int page, final int size) {
 
         log.info("User '{}' requested individual users.", this.securityUtil.getCurrentUser().getEmail());
@@ -179,7 +184,7 @@ public class UserService {
         final PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
         final Page<User> users = this.userRepository.findByOrganizationIsNullAndActiveTrueAndIdNot(
                 this.securityUtil.getCurrentUserId(), pageRequest);
-        log.info("User '{}' retrieved {} individual users.", this.securityUtil.getCurrentUser().getEmail(), users.getNumberOfElements());
+        log.info("User '{}' retrieved {} individual users (page {}, size {}).", this.securityUtil.getCurrentUser().getEmail(), users.getNumberOfElements(),page, size);
 
         return users.map(user ->
                 UserResponseDto.builder()
@@ -196,6 +201,7 @@ public class UserService {
 
     //Performs a POST operation and creates a user in DB.
     @Transactional
+    @TrackExecutionTime
     public UserResponseDto createUser(final CreateUserRequestDto request){
 
         log.info("User '{}' requested user creation.", this.securityUtil.getCurrentUser().getEmail());
@@ -257,6 +263,7 @@ public class UserService {
     }
 
     @Transactional
+    @TrackExecutionTime
     public void activate(final String userId, final boolean active){
 
         log.info("User '{}' requested {} of user '{}'.", this.securityUtil.getCurrentUser().getEmail(),
@@ -305,6 +312,7 @@ public class UserService {
     }
 
     @Transactional
+    @TrackExecutionTime
     public void activate(final String id, final boolean active, final boolean isUser){
 
         log.info("User '{}' requested {} of {} '{}'.", this.securityUtil.getCurrentUser().getEmail(),
@@ -394,6 +402,7 @@ public class UserService {
     //performs a PUT operation and bulk uploads users to DB.
     //only org admins can bulk upload.
     @Transactional
+    @TrackExecutionTime
     public BulkUploadResponseDto bulkUploadUsers(final MultipartFile file, final String organizationId){
 
         log.info("User '{}' requested a bulk user upload.", this.securityUtil.getCurrentUser().getEmail());
@@ -738,6 +747,7 @@ public class UserService {
     }
 
     @Transactional
+    @TrackExecutionTime
     public void resendActivationEmail(final String email) {
 
         log.info("User '{}' requested activation email resend for '{}'.", this.securityUtil.getCurrentUser().getEmail(), email);

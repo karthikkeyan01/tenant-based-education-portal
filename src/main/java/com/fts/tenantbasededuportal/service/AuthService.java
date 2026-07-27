@@ -1,5 +1,6 @@
 package com.fts.tenantbasededuportal.service;
 
+import com.fts.tenantbasededuportal.aop.annotation.TrackExecutionTime;
 import com.fts.tenantbasededuportal.dto.audit.AuditRequestDto;
 import com.fts.tenantbasededuportal.dto.auth.*;
 import com.fts.tenantbasededuportal.entity.Role;
@@ -51,6 +52,7 @@ public class AuthService {
     private String baseUrl;
 
     @Transactional
+    @TrackExecutionTime
     public void register(final RegisterRequestDto request){
 
         log.info("Registration requested for email '{}'.", request.getEmail());
@@ -95,6 +97,7 @@ public class AuthService {
         }
     }
 
+    @TrackExecutionTime
     public LoginResponseDto login(final LoginRequestDto request){
 
         log.info("Authentication requested for email '{}'.", request.getEmail());
@@ -171,6 +174,7 @@ public class AuthService {
     }
 
     @Transactional
+    @TrackExecutionTime
     public LoginResponseDto verifyOtp(final String email, final String otp){
 
         log.info("OTP verification requested for email '{}'.", email);
@@ -238,6 +242,7 @@ public class AuthService {
     }
 
     @Transactional
+    @TrackExecutionTime
     public void resendOtp(final String email) {
 
         log.info("OTP resend requested for email '{}'.", email);
@@ -276,6 +281,7 @@ public class AuthService {
     }
 
     @Transactional
+    @TrackExecutionTime
     public void activateAccount(final String token, final String password) {
 
         log.info("Account activation requested.");
@@ -315,6 +321,7 @@ public class AuthService {
     }
 
     @Transactional
+    @TrackExecutionTime
     public void forgotPassword(final String email) {
 
         log.info("Forgot password requested for email '{}'.", email);
@@ -351,6 +358,7 @@ public class AuthService {
     }
 
     @Transactional
+    @TrackExecutionTime
     public void resetPassword(final String token, final String password) {
 
         log.info("Password reset requested.");
@@ -385,6 +393,7 @@ public class AuthService {
     }
 
     @Transactional
+    @TrackExecutionTime
     public void logout() {
 
         this.auditService.create(AuditRequestDto.builder()
