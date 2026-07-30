@@ -50,6 +50,7 @@ public class ProfileService {
                         : null)
                 .mfaEnabled(currentUser.getMfaEnabled())
                 .createdAt(currentUser.getCreatedAt())
+                .updatedAt(currentUser.getUpdatedAt())
                 .build();
     }
 
@@ -116,6 +117,7 @@ public class ProfileService {
                         : null)
                 .mfaEnabled(savedUser.getMfaEnabled())
                 .createdAt(savedUser.getCreatedAt())
+                .updatedAt(savedUser.getUpdatedAt())
                 .build();
     }
 

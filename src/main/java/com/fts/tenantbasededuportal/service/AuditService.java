@@ -80,6 +80,7 @@ public class AuditService {
                     .requestUrl(auditLog.getRequestUrl())
                     .method(auditLog.getMethod())
                     .createdAt(auditLog.getCreatedAt())
+                    .updatedAt(auditLog.getUpdatedAt())
                     .build();
         });
     }
@@ -111,6 +112,7 @@ public class AuditService {
                     .requestUrl(auditLog.getRequestUrl())
                     .method(auditLog.getMethod())
                     .createdAt(auditLog.getCreatedAt())
+                    .updatedAt(auditLog.getUpdatedAt())
                     .build();
         });
 

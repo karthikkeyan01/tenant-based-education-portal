@@ -129,6 +129,7 @@ public class OrganizationService {
                         .name(organization.getName())
                         .active(organization.getActive())
                         .createdAt(organization.getCreatedAt())
+                        .updatedAt(organization.getUpdatedAt())
                         .build());
     }
 
@@ -155,6 +156,7 @@ public class OrganizationService {
                 .name(organization.getName())
                 .active(organization.getActive())
                 .createdAt(organization.getCreatedAt())
+                .updatedAt(organization.getUpdatedAt())
                 .build();
     }
 
@@ -207,6 +209,7 @@ public class OrganizationService {
                 .name(savedOrganization.getName())
                 .active(savedOrganization.getActive())
                 .createdAt(savedOrganization.getCreatedAt())
+                .updatedAt(savedOrganization.getUpdatedAt())
                 .build();
     }
 

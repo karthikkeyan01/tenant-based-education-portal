@@ -42,4 +42,6 @@ public class AuditResponseDto {
 
     @Schema(description = "Date and time when the audit log was created.", example = "2026-07-17T14:30:15Z")
     private Instant createdAt;
+    @Schema(description = "Date and time when the audit log was last updated.", example = "2026-07-17T15:45:30Z")
+    private Instant updatedAt;
 }

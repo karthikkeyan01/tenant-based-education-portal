@@ -91,6 +91,7 @@ public class UserService {
                                 ? user.getOrganization().getName()
                                 : null)
                         .createdAt(user.getCreatedAt())
+                        .updatedAt(user.getUpdatedAt())
                         .build());
     }
 
@@ -138,6 +139,7 @@ public class UserService {
                 .mfaEnabled(targetUser.getMfaEnabled())
                 .active(targetUser.getActive())
                 .createdAt(targetUser.getCreatedAt())
+                .updatedAt(targetUser.getUpdatedAt())
                 .build();
     }
 
@@ -169,6 +171,7 @@ public class UserService {
                         .mfaEnabled(user.getMfaEnabled())
                         .active(user.getActive())
                         .createdAt(user.getCreatedAt())
+                        .updatedAt(user.getUpdatedAt())
                         .build());
     }
 
@@ -196,6 +199,7 @@ public class UserService {
                         .mfaEnabled(user.getMfaEnabled())
                         .active(user.getActive())
                         .createdAt(user.getCreatedAt())
+                        .updatedAt(user.getUpdatedAt())
                         .build());
     }
 
@@ -259,6 +263,7 @@ public class UserService {
                 .mfaEnabled(savedUser.getMfaEnabled())
                 .active(savedUser.getActive())
                 .createdAt(savedUser.getCreatedAt())
+                .updatedAt(savedUser.getUpdatedAt())
                 .build();
     }
 

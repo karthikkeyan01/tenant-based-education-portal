@@ -33,4 +33,6 @@ public class ProfileResponseDto {
 
     @Schema(description = "Date and time when the user account was created.", example = "2026-07-17T14:30:15Z")
     private Instant createdAt;
+    @Schema(description = "Date and time when the user profile was last updated.", example = "2026-07-17T15:45:30Z")
+    private Instant updatedAt;
 }
