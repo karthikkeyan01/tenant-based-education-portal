@@ -7,6 +7,7 @@ import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
 import com.fts.tenantbasededuportal.exception.ConflictException;
+import com.fts.tenantbasededuportal.exception.ResourceNotFoundException;
 import com.fts.tenantbasededuportal.exception.UnauthorizedException;
 import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
@@ -17,6 +18,7 @@ import com.fts.tenantbasededuportal.util.constants.AuditActionConstants;
 import com.fts.tenantbasededuportal.util.constants.EntityAffectedConstants;
 import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import org.springframework.http.HttpHeaders;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
@@ -47,6 +50,7 @@ public class AuthService {
     private final EmailService emailService;
     private final TokenGeneratorService tokenGeneratorService;
     private final SecurityUtil  securityUtil;
+    private final HttpServletRequest request;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -370,6 +374,10 @@ public class AuthService {
             log.warn("Password reset failed because the reset link expired for '{}'.", user.getEmail());
             throw new BadRequestException("Reset password link has expired.");
         }
+        if (this.passwordEncoder.matches(password, user.getPassword())) {
+            log.warn("Password reset failed because the new password matches the current password for '{}'.", user.getEmail());
+            throw new BadRequestException("New password must be different from the current password.");
+        }
 
         user.setPassword(this.passwordEncoder.encode(password));
         user.setResetPasswordToken(null);
@@ -396,12 +404,26 @@ public class AuthService {
     @TrackExecutionTime
     public void logout() {
 
-        this.auditService.create(AuditRequestDto.builder()
-                        .action(AuditActionConstants.LOGOUT)
-                        .entityAffected(EntityAffectedConstants.AUTH)
-                        .entityId(this.securityUtil.getCurrentUserId())
-                        .description("User logged out.")
-                        .build());
-        log.info("User '{}' logged out successfully.", this.securityUtil.getCurrentUser().getEmail());
+        final String authorizationHeader = this.request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new UnauthorizedException("Authorization header is missing or invalid.");
+        }
+        final String token = authorizationHeader.substring(7);
+        final String email = this.jwtService.extractEmail(token);
+        final User user = this.userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found."));
+        this.securityUtil.setAuthentication(user);
+
+        try {
+            this.auditService.create(AuditRequestDto.builder()
+                    .action(AuditActionConstants.LOGOUT)
+                    .entityAffected(EntityAffectedConstants.AUTH)
+                    .entityId(this.securityUtil.getCurrentUserId())
+                    .description("User logged out.")
+                    .build());
+            log.info("User '{}' logged out successfully.", this.securityUtil.getCurrentUser().getEmail());
+        }
+        finally {
+            this.securityUtil.clearAuthentication();
+        }
     }
 }
