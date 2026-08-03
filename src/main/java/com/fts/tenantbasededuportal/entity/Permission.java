@@ -10,7 +10,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Permission {
+public class Permission extends BaseEntity{
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

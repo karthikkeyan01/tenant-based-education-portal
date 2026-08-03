@@ -54,8 +54,8 @@ public class User extends BaseEntity{
     private Boolean mfaEnabled = false;
     @JsonIgnore
     private String otp;
-
     @JsonIgnore
     private Instant otpExpiresAt;
+
     private Instant lastLoginAt;
 }
