@@ -5,7 +5,7 @@
 
     <changeSet id="01-create-role-table" author="karthik">
         <createTable tableName="roles" remarks="Role master table">
-            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+            <column name="id" type="VARCHAR(36)" defaultValueComputed="gen_random_uuid()::text">
                 <constraints primaryKey="true" nullable="false" primaryKeyName="pk_roles"/>
             </column>
 

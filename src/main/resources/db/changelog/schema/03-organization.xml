@@ -5,7 +5,7 @@
 
     <changeSet id="03-create-organization-table" author="karthik">
         <createTable tableName="organizations" remarks="Stores organization records.">
-            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+            <column name="id" type="VARCHAR(36)" defaultValueComputed="gen_random_uuid()::text">
                 <constraints primaryKey="true" primaryKeyName="pk_organizations" nullable="false"/>
             </column>
 

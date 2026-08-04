@@ -5,7 +5,7 @@
     
     <changeSet id="04-create-user-table" author="karthik">
         <createTable tableName="users" remarks="Stores portal users.">
-            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+            <column name="id" type="VARCHAR(36)" defaultValueComputed="gen_random_uuid()::text">
                 <constraints primaryKey="true" primaryKeyName="pk_users" nullable="false"/>
             </column>
 
@@ -21,11 +21,11 @@
 
             <column name="last_name" type="VARCHAR(255)"/>
             
-            <column name="role_id" type="UUID">
+            <column name="role_id" type="VARCHAR(36)">
                 <constraints nullable="false"/>
             </column>
 
-            <column name="organization_id" type="UUID"/>
+            <column name="organization_id" type="VARCHAR(36)"/>
 
             <column name="active" type="BOOLEAN" defaultValueBoolean="false">
                 <constraints nullable="false"/>

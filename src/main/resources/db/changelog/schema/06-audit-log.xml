@@ -5,11 +5,11 @@
 
     <changeSet id="06-create-audit-log-table" author="karthik">
         <createTable tableName="audit_logs" remarks="Stores application audit logs.">
-            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+            <column name="id" type="VARCHAR(36)" defaultValueComputed="gen_random_uuid()::text">
                 <constraints primaryKey="true" primaryKeyName="pk_audit_logs" nullable="false"/>
             </column>
 
-            <column name="user_id" type="UUID"/>
+            <column name="user_id" type="VARCHAR(36)"/>
 
             <column name="action" type="VARCHAR(255)">
                 <constraints nullable="false"/>
@@ -17,7 +17,7 @@
 
             <column name="entity_affected" type="VARCHAR(255)"/>
 
-            <column name="entity_id" type="VARCHAR(255)"/>
+            <column name="entity_id" type="VARCHAR(36)"/>
 
             <column name="details" type="TEXT"/>
 
