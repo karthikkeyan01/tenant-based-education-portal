@@ -25,7 +25,6 @@ public class AuditLog extends BaseEntity {
 
     private String entityId;
 
-    @Column(columnDefinition = "TEXT")
     private String details;
 
     @Column(nullable = false, length = 1000)

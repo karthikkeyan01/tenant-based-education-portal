@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="05-create-role-permission-table" author="karthik">
+        <createTable tableName="role_permissions" remarks="Stores role-to-permission mappings.">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_role_permissions" nullable="false"/>
+            </column>
+
+            <column name="role_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="permission_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="role_permissions" columnNames="role_id,permission_id" constraintName="uk_role_permissions_role_permission"/>
+
+        <addForeignKeyConstraint baseTableName="role_permissions" baseColumnNames="role_id" referencedTableName="roles"
+                                 referencedColumnNames="id" constraintName="fk_role_permissions_role"/>
+
+        <addForeignKeyConstraint baseTableName="role_permissions" baseColumnNames="permission_id" referencedTableName="permissions"
+                                 referencedColumnNames="id" constraintName="fk_role_permissions_permission"/>
+    </changeSet>
+</databaseChangeLog>

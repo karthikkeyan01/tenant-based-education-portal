@@ -8,11 +8,11 @@
 
     <include file="02-permission.xml" relativeToChangelogFile="true"/>
 
-    <include file="03-role-permission.xml" relativeToChangelogFile="true"/>
+    <include file="05-role-permission.xml" relativeToChangelogFile="true"/>
 
-    <include file="04-organization.xml" relativeToChangelogFile="true"/>
+    <include file="03-organization.xml" relativeToChangelogFile="true"/>
 
-    <include file="05-user.xml" relativeToChangelogFile="true"/>
+    <include file="04-user.xml" relativeToChangelogFile="true"/>
 
     <include file="06-audit-log.xml" relativeToChangelogFile="true"/>
 

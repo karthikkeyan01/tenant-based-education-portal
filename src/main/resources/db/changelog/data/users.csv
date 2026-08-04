@@ -1,0 +1,2 @@
+"id","email","password","role_id","active","mfa_enabled"
+"708cba19-5f80-405e-8ab1-14cd7fd02d8f","superadmin.0105@gmail.com","$2a$10$6/auqrFe3nN7gygQPB479.t5LBIWwbsCZjlLSUhvXSMHmaS6mXVsG","98d005a8-e4c9-4926-bd91-1e1a85aac7c5","true","false"
