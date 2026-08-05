@@ -26,8 +26,6 @@ public class SuperAdminInitializer {
     private final PasswordEncoder passwordEncoder;
     private final TokenGeneratorService tokenGeneratorService;
     private final EmailService emailService;
-    @Value("${app.super-admin.email}")
-    private String superAdminEmail;
     @Value("${app.super-admin.temporary-password}")
     private String temporaryPassword;
     @Value("${app.base-url}")
@@ -38,7 +36,7 @@ public class SuperAdminInitializer {
     public void initializeSuperAdmin() {
 
         log.info("Initializing Super Admin");
-        final User user = this.userRepository.findByEmailAndActiveTrue(this.superAdminEmail).orElseThrow(() -> new
+        final User user = this.userRepository.findByEmailAndActiveTrue(ApplicationConstants.SUPER_ADMIN_EMAIL).orElseThrow(() -> new
                 IllegalStateException("Active Super Admin not found."));
 
         if (user.getResetPasswordToken() != null) {
