@@ -4,6 +4,8 @@ import com.fts.tenantbasededuportal.security.CustomUserDetailsService;
 import com.fts.tenantbasededuportal.security.JwtFilter;
 import com.fts.tenantbasededuportal.security.RestAccessDeniedHandler;
 import com.fts.tenantbasededuportal.security.RestAuthenticationEntryPoint;
+import com.fts.tenantbasededuportal.security.oauth.OAuth2AuthenticationFailureHandler;
+import com.fts.tenantbasededuportal.security.oauth.OAuth2AuthenticationSuccessHandler;
 import com.fts.tenantbasededuportal.util.constants.RoleConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +23,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
 @EnableWebSecurity
@@ -32,17 +35,16 @@ public class SecurityConfig {
     private final CustomUserDetailsService customUserDetailsService;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
+    private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
+    private final PasswordEncoder passwordEncoder;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize ->
                         authorize.requestMatchers("/auth/**").permitAll()
+                                .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                                 .requestMatchers("/actuator/**").hasRole(RoleConstants.SUPER_ADMIN)
                                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                                 .anyRequest().authenticated())
@@ -50,10 +52,12 @@ public class SecurityConfig {
                         .authenticationEntryPoint(this.authenticationEntryPoint)
                         .accessDeniedHandler(this.accessDeniedHandler))
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                .oauth2Login(oauth -> oauth
+                        .successHandler(this.oauth2AuthenticationSuccessHandler)
+                        .failureHandler(this.oauth2AuthenticationFailureHandler))
                 .authenticationProvider(this.authenticationProvider())
-                .addFilterBefore(this.jwtFilter,
-                        UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(this.jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
 
@@ -62,7 +66,7 @@ public class SecurityConfig {
     @Bean
     public AuthenticationProvider authenticationProvider() {
         final DaoAuthenticationProvider provider = new DaoAuthenticationProvider(this.customUserDetailsService);
-        provider.setPasswordEncoder(this.passwordEncoder());
+        provider.setPasswordEncoder(this.passwordEncoder);
         return provider;
     }
 

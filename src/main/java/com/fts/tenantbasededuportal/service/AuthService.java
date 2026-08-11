@@ -13,10 +13,7 @@ import com.fts.tenantbasededuportal.repository.RoleRepository;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.security.JwtService;
 import com.fts.tenantbasededuportal.security.UserPrincipal;
-import com.fts.tenantbasededuportal.util.constants.ApplicationConstants;
-import com.fts.tenantbasededuportal.util.constants.AuditActionConstants;
-import com.fts.tenantbasededuportal.util.constants.EntityAffectedConstants;
-import com.fts.tenantbasededuportal.util.constants.RoleConstants;
+import com.fts.tenantbasededuportal.util.constants.*;
 import com.fts.tenantbasededuportal.util.SecurityUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -73,6 +70,7 @@ public class AuthService {
                 .role(userRole)
                 .organization(null)
                 .active(true)
+                .authProvider(AuthProviderConstants.LOCAL)
                 .mfaEnabled(false)
                 .otp(null)
                 .otpExpiresAt(null)

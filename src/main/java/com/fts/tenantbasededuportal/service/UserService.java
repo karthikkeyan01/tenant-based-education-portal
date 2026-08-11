@@ -234,6 +234,7 @@ public class UserService {
                 .role(role)
                 .organization(organization)
                 .active(false)
+                .authProvider(AuthProviderConstants.LOCAL)
                 .mfaEnabled(false)
                 .activationToken(activationToken)
                 .activationTokenExpiresAt(
@@ -538,19 +539,19 @@ public class UserService {
                         generatePassword(ApplicationConstants.GENERATED_PASSWORD_LENGTH);
                 final String activationToken = this.tokenGeneratorService.generateToken();
                 final User user = User.builder()
-                            .email(email)
-                            .firstName(firstName)
-                            .lastName(lastName)
-                            .password(this.passwordEncoder.encode(temporaryPassword))
-                            .role(userRole)
-                            .organization(targetOrganization)
-                            .active(false)
-                            .mfaEnabled(false)
-                            .activationToken(activationToken)
-                            .activationTokenExpiresAt(Instant.now().plus(
-                                    ApplicationConstants
-                                            .ACTIVATION_LINK_EXPIRY_HOURS, ChronoUnit.HOURS))
-                            .build();
+                        .email(email)
+                        .firstName(firstName)
+                        .lastName(lastName)
+                        .password(this.passwordEncoder.encode(temporaryPassword))
+                        .role(userRole)
+                        .organization(targetOrganization)
+                        .active(false)
+                        .authProvider(AuthProviderConstants.LOCAL)
+                        .mfaEnabled(false)
+                        .activationToken(activationToken)
+                        .activationTokenExpiresAt(Instant.now().plus(ApplicationConstants.ACTIVATION_LINK_EXPIRY_HOURS,
+                                ChronoUnit.HOURS))
+                        .build();
 
                 final User savedUser = this.userRepository.save(user);
                 uploaded++;
@@ -703,6 +704,7 @@ public class UserService {
                         .role(userRole)
                         .organization(targetOrganization)
                         .active(false)
+                        .authProvider(AuthProviderConstants.LOCAL)
                         .mfaEnabled(false)
                         .activationToken(activationToken)
                         .activationTokenExpiresAt(Instant.now().plus(

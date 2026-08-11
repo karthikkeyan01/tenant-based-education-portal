@@ -226,6 +226,7 @@ public class OrganizationService {
                 .role(data.getRole())
                 .organization(data.getOrganization())
                 .active(false)
+                .authProvider(AuthProviderConstants.LOCAL)
                 .mfaEnabled(false)
                 .build();
 

@@ -39,6 +39,9 @@ public class User extends BaseEntity{
     @Builder.Default
     private Boolean active = false;
 
+    @Column(name = "auth_provider", nullable = false, length = 20)
+    private String authProvider;
+
     @JsonIgnore
     private String activationToken;
     @JsonIgnore
