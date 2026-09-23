@@ -16,4 +16,6 @@
 
     <include file="06-audit-log.xml" relativeToChangelogFile="true"/>
 
+    <include file="07-socket-event.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

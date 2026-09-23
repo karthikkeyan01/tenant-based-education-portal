@@ -6,7 +6,9 @@ import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
+import com.fts.tenantbasededuportal.socket.event.UserCreatedEvent;
 import com.fts.tenantbasededuportal.exception.ConflictException;
+import com.fts.tenantbasededuportal.socket.dto.UserCreatedSocketDto;
 import com.fts.tenantbasededuportal.util.constants.*;
 import com.fts.tenantbasededuportal.exception.BadRequestException;
 import com.fts.tenantbasededuportal.exception.ResourceNotFoundException;
@@ -19,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -48,6 +51,7 @@ public class UserService {
     private final PasswordGeneratorService passwordGeneratorService;
     private final TokenGeneratorService tokenGeneratorService;
     private final EmailService emailService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -254,7 +258,7 @@ public class UserService {
                         .build());
         log.info("User '{}' created user '{}'.", this.securityUtil.getCurrentUser().getEmail(), savedUser.getEmail());
 
-        return UserResponseDto.builder()
+        final UserResponseDto response = UserResponseDto.builder()
                 .id(savedUser.getId())
                 .email(savedUser.getEmail())
                 .firstName(savedUser.getFirstName())
@@ -266,6 +270,20 @@ public class UserService {
                 .createdAt(savedUser.getCreatedAt())
                 .updatedAt(savedUser.getUpdatedAt())
                 .build();
+        final UserCreatedSocketDto socketUser = UserCreatedSocketDto.builder()
+                .id(savedUser.getId())
+                .email(savedUser.getEmail())
+                .firstName(savedUser.getFirstName())
+                .lastName(savedUser.getLastName())
+                .roleName(savedUser.getRole().getName())
+                .organizationName(savedUser.getOrganization().getName())
+                .mfaEnabled(savedUser.getMfaEnabled())
+                .active(savedUser.getActive())
+                .createdAt(savedUser.getCreatedAt())
+                .build();
+
+        this.applicationEventPublisher.publishEvent(new UserCreatedEvent(socketUser, savedUser.getOrganization().getId()));
+        return response;
     }
 
     @Transactional
