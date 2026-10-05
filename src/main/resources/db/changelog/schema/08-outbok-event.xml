@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="08-create-outbox-event-table" author="karthik">
+
+        <createTable tableName="outbox_event" remarks="Stores events waiting to be published to Kafka.">
+
+            <column name="id" type="VARCHAR(36)" defaultValueComputed="gen_random_uuid()::text">
+                <constraints primaryKey="true" primaryKeyName="pk_outbox_event" nullable="false"/>
+            </column>
+
+            <column name="event_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="payload" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="published_at" type="TIMESTAMP WITH TIME ZONE"/>
+
+        </createTable>
+
+        <createIndex indexName="idx_outbox_event_published" tableName="outbox_event">
+            <column name="published_at"/>
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

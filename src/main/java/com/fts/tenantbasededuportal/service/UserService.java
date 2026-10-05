@@ -6,7 +6,10 @@ import com.fts.tenantbasededuportal.dto.user.*;
 import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
-import com.fts.tenantbasededuportal.socket.event.UserCreatedEvent;
+import com.fts.tenantbasededuportal.kafka.event.UserCreatedKafkaEvent;
+import com.fts.tenantbasededuportal.kafka.producer.UserCreatedKafkaProducer;
+import com.fts.tenantbasededuportal.outbox.entity.OutboxEvent;
+import com.fts.tenantbasededuportal.outbox.repository.OutboxEventRepository;
 import com.fts.tenantbasededuportal.exception.ConflictException;
 import com.fts.tenantbasededuportal.socket.dto.UserCreatedSocketDto;
 import com.fts.tenantbasededuportal.util.constants.*;
@@ -21,12 +24,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -51,7 +54,9 @@ public class UserService {
     private final PasswordGeneratorService passwordGeneratorService;
     private final TokenGeneratorService tokenGeneratorService;
     private final EmailService emailService;
-    private final ApplicationEventPublisher applicationEventPublisher;
+    private final UserCreatedKafkaProducer userCreatedKafkaProducer;
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -282,7 +287,11 @@ public class UserService {
                 .createdAt(savedUser.getCreatedAt())
                 .build();
 
-        this.applicationEventPublisher.publishEvent(new UserCreatedEvent(socketUser, savedUser.getOrganization().getId()));
+        final UserCreatedKafkaEvent kafkaEvent = new UserCreatedKafkaEvent(socketUser, savedUser.getOrganization().getId());
+        final String payload = this.objectMapper.writeValueAsString(kafkaEvent);
+        final OutboxEvent outboxEvent = OutboxEvent.create("USER_CREATED", payload);
+        this.outboxEventRepository.save(outboxEvent);
+
         return response;
     }
 

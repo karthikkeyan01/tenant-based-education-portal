@@ -18,4 +18,6 @@
 
     <include file="07-socket-event.xml" relativeToChangelogFile="true"/>
 
+    <include file="08-outbok-event.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>
