@@ -1,7 +1,7 @@
 package com.fts.tenantbasededuportal.socket.service;
 
 import com.fts.tenantbasededuportal.entity.User;
-import com.fts.tenantbasededuportal.socket.event.UserCreatedEvent;
+import com.fts.tenantbasededuportal.event.UserCreatedEvent;
 import com.fts.tenantbasededuportal.repository.UserRepository;
 import com.fts.tenantbasededuportal.socket.entity.SocketEvent;
 import com.fts.tenantbasededuportal.socket.repository.SocketEventRepository;

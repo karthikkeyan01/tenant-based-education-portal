@@ -1,9 +1,8 @@
 package com.fts.tenantbasededuportal.kafka.consumer;
 
 import com.fts.tenantbasededuportal.kafka.event.UserCreatedKafkaEvent;
-import com.fts.tenantbasededuportal.socket.dto.UserCreatedSocketDto;
 import com.fts.tenantbasededuportal.socket.entity.SocketEvent;
-import com.fts.tenantbasededuportal.socket.event.UserCreatedEvent;
+import com.fts.tenantbasededuportal.event.UserCreatedEvent;
 import com.fts.tenantbasededuportal.socket.service.SocketEventDeliveryService;
 import com.fts.tenantbasededuportal.socket.service.SocketEventService;
 import lombok.RequiredArgsConstructor;

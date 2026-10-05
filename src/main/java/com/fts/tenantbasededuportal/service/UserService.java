@@ -7,7 +7,6 @@ import com.fts.tenantbasededuportal.entity.Organization;
 import com.fts.tenantbasededuportal.entity.Role;
 import com.fts.tenantbasededuportal.entity.User;
 import com.fts.tenantbasededuportal.kafka.event.UserCreatedKafkaEvent;
-import com.fts.tenantbasededuportal.kafka.producer.UserCreatedKafkaProducer;
 import com.fts.tenantbasededuportal.outbox.entity.OutboxEvent;
 import com.fts.tenantbasededuportal.outbox.repository.OutboxEventRepository;
 import com.fts.tenantbasededuportal.exception.ConflictException;
@@ -54,7 +53,6 @@ public class UserService {
     private final PasswordGeneratorService passwordGeneratorService;
     private final TokenGeneratorService tokenGeneratorService;
     private final EmailService emailService;
-    private final UserCreatedKafkaProducer userCreatedKafkaProducer;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
 

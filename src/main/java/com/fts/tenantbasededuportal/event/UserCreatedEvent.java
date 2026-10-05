@@ -1,4 +1,4 @@
-package com.fts.tenantbasededuportal.socket.event;
+package com.fts.tenantbasededuportal.event;
 
 import com.fts.tenantbasededuportal.socket.dto.UserCreatedSocketDto;
 
